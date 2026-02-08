@@ -3,7 +3,7 @@ import google.generativeai as genai
 import base64
 
 # --- CONFIGURATION ---
-GEMINI_API_KEY = "AIzaSyDzduUjdo4IT8tmRWAO2V1PrcFbwLXne5E"
+GEMINI_API_KEY = st.secrets["GEMINI_KEY"]
 genai.configure(api_key=GEMINI_API_KEY)
 
 # --- 1. SETTINGS & CSS (The "Attractive" Part) ---
@@ -104,4 +104,5 @@ with col2:
     - **Be Specific:** Tell the AI the tone you want.
     - **Format:** Ask for bullet points or code.
     - **Persona:** Tell the AI to 'Act as...'
+
     """)

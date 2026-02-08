@@ -1,137 +1,138 @@
 import streamlit as st
 import google.generativeai as genai
 import streamlit_antd_components as sac
+from st_copy_to_clipboard import copy_to_clipboard
 
 # --- CONFIGURATION ---
 try:
     GEMINI_API_KEY = st.secrets["GEMINI_KEY"]
     genai.configure(api_key=GEMINI_API_KEY)
 except:
-    st.error("API Key not found in Secrets!")
+    st.error("API Key not found in Secrets! Please check Streamlit Cloud Secrets.")
 
 st.set_page_config(page_title="Prompt Studio", page_icon="🪄", layout="wide")
 
-# --- CYBERPUNK GLASSMORPHISM CSS ---
+# --- CUSTOM CSS (Left Aligned & Glassmorphism) ---
 st.markdown("""
     <style>
-    /* Hide Default Elements */
     .stDeployButton {display:none;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
-
-    /* Background with AI/Tech Imagery */
+    
+    /* Background */
     .stApp {
-        background: linear-gradient(rgba(10, 10, 35, 0.8), rgba(10, 10, 35, 0.8)), 
-                    url("https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=2000&auto=format&fit=crop");
+        background: linear-gradient(rgba(10, 10, 35, 0.9), rgba(10, 10, 35, 0.9)), 
+                    url("https://images.unsplash.com/photo-1639322537228-f710d846310a?q=80&w=2000&auto=format&fit=crop");
         background-size: cover;
-        background-attachment: fixed;
     }
 
-    /* Main Container Glass Effect */
+    /* Main Container */
     .main-box {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.03);
         backdrop-filter: blur(15px);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 20px;
-        padding: 40px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+        padding: 30px;
+        color: white;
     }
 
-    /* Gradient Text & Headers */
-    .gradient-text {
-        background: linear-gradient(90deg, #ffffff, #a29bfe);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-weight: bold;
-        font-size: 3rem !important;
-    }
-
-    /* Custom Input Styling */
-    .stTextArea textarea {
-        background: rgba(0, 0, 0, 0.3) !important;
-        border: 1px solid #4834d4 !important;
-        color: white !important;
-        border-radius: 10px !important;
-    }
-
-    /* Glowing Button */
-    div.stButton > button {
+    /* Left Aligning Button Containers */
+    .stButton > button {
+        width: auto !important; /* Prevents buttons from stretching full width */
+        padding: 10px 25px !important;
         background: linear-gradient(90deg, #6c5ce7, #00d2ff) !important;
-        color: white !important;
         border: none !important;
-        padding: 15px 30px !important;
-        border-radius: 12px !important;
+        color: white !important;
         font-weight: bold !important;
-        transition: 0.3s ease all !important;
-        width: 100%;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    
-    div.stButton > button:hover {
-        box-shadow: 0 0 20px rgba(0, 210, 255, 0.6) !important;
-        transform: translateY(-2px);
+        border-radius: 8px !important;
     }
 
-    /* Sidebar Styling */
-    [data-testid="stSidebar"] {
-        background: rgba(10, 10, 30, 0.9) !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
+    /* Style for the generated output */
+    .output-text {
+        background: rgba(0, 0, 0, 0.5);
+        padding: 20px;
+        border-radius: 12px;
+        border-left: 4px solid #00d2ff;
+        margin-bottom: 15px;
+        font-family: 'Courier New', monospace;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Initialize Session States
+# Initialize Session State
 if "history" not in st.session_state: st.session_state.history = []
-if "generated_prompt" not in st.session_state: st.session_state.generated_prompt = ""
+if "last_result" not in st.session_state: st.session_state.last_result = ""
 
-# --- SIDEBAR MENU ---
+# --- SIDEBAR MENU (LEFT SIDE) ---
 with st.sidebar:
-    st.markdown("<h2 style='color:white; margin-bottom:20px;'>🪄 Navigation</h2>", unsafe_allow_html=True)
+    st.markdown("## 🪄 Neural Menu")
     menu_item = sac.menu([
-        sac.MenuItem('New Chat', icon='stars'),
-        sac.MenuItem('History', icon='archive'),
-        sac.MenuItem('Settings', icon='sliders'),
+        sac.MenuItem('New Chat', icon='plus-circle'),
+        sac.MenuItem('History', icon='clock-history'),
+        sac.MenuItem('Settings', icon='sliders2-vertical'),
     ], color='indigo', variant='filled')
+    
+    st.divider()
+    if st.button("🗑️ Clear App Data"):
+        st.session_state.history = []
+        st.session_state.last_result = ""
+        st.rerun()
 
-# --- MAIN CONTENT WRAPPER ---
+# --- MAIN PAGE CONTENT ---
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
 if menu_item == 'New Chat':
-    st.markdown('<h1 class="gradient-text">Prompt Studio</h1>', unsafe_allow_html=True)
-    st.markdown("<p style='color: #b2bec3; font-size: 1.2rem;'>Transforming Ideas into AI Art</p>", unsafe_allow_html=True)
-    st.write("---")
+    st.title("🚀 AI Prompt Generator")
     
-    user_input = st.text_area("What is your basic idea?", placeholder="e.g. A cybernetic owl in bioluminescent forest", height=120)
+    user_input = st.text_area("Enter your basic idea:", placeholder="e.g. A futuristic city underwater", height=100)
     
-    if st.button("Generate Masterpiece"):
+    # Generate Button (Left Aligned)
+    if st.button("Generate Enhanced Text"):
         if user_input:
-            with st.spinner("Processing Neural Networks..."):
+            with st.spinner("Neural Processing..."):
                 try:
                     model = genai.GenerativeModel('gemini-2.5-flash')
-                    response = model.generate_content(f"Act as a professional Prompt Engineer. Expand this into a detailed, structured AI prompt: {user_input}")
-                    st.session_state.generated_prompt = response.text
+                    response = model.generate_content(f"Act as a professional Prompt Engineer. Expand this: {user_input}")
+                    st.session_state.last_result = response.text
                     st.session_state.history.append({"input": user_input, "output": response.text})
                 except Exception as e:
                     st.error(f"Error: {e}")
-    
-    if st.session_state.generated_prompt:
+        else:
+            st.warning("Input required.")
+
+    # Results Section
+    if st.session_state.last_result:
         st.markdown("### ⚡ Enhanced Result")
-        st.info(st.session_state.generated_prompt)
+        st.markdown(f'<div class="output-text">{st.session_state.last_result}</div>', unsafe_allow_html=True)
+        
+        # Action Buttons (Left Aligned)
+        col_copy, col_dl, col_spacer = st.columns([1, 1, 4])
+        
+        with col_copy:
+            copy_to_clipboard(st.session_state.last_result)
+            st.caption("Copy to Clipboard")
+            
+        with col_dl:
+            st.download_button(
+                label="📥 Download",
+                data=st.session_state.last_result,
+                file_name="ai_prompt.txt",
+                mime="text/plain"
+            )
 
 elif menu_item == 'History':
-    st.markdown('<h1 class="gradient-text">Archive</h1>', unsafe_allow_html=True)
+    st.title("📜 Neural Archive")
     if not st.session_state.history:
-        st.info("No records found in the database.")
+        st.info("No history found in the database.")
     else:
         for i, item in enumerate(reversed(st.session_state.history)):
-            with st.expander(f"Entry {len(st.session_state.history)-i}"):
-                st.write(f"**Input:** {item['input']}")
+            with st.expander(f"Prompt #{len(st.session_state.history)-i}"):
+                st.write(f"**Original:** {item['input']}")
                 st.code(item['output'])
 
 elif menu_item == 'Settings':
-    st.markdown('<h1 class="gradient-text">System Settings</h1>', unsafe_allow_html=True)
-    st.select_slider("Neural Processing Depth", options=["Low", "Standard", "Deep", "Quantum"])
-    st.checkbox("Enable Auto-History", value=True)
+    st.title("⚙️ System Config")
+    st.slider("Processing Temperature", 0.0, 1.0, 0.7)
+    st.radio("Model Version", ["Gemini 2.5 Flash", "Gemini 3 Pro"])
+    st.success("System is running at 100% capacity.")
 
 st.markdown('</div>', unsafe_allow_html=True)

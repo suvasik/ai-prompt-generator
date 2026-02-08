@@ -11,12 +11,11 @@ except:
 
 st.set_page_config(page_title="Prompt Studio", page_icon="🪄", layout="wide")
 
-# --- CYBER UI CSS (Left Aligned & Glassmorphism) ---
+# --- CYBER UI CSS ---
 st.markdown("""
     <style>
     .stDeployButton {display:none;}
     footer {visibility: hidden;}
-    
     .stApp {
         background: linear-gradient(rgba(10, 10, 35, 0.9), rgba(10, 10, 35, 0.9)), 
                     url("https://images.unsplash.com/photo-1639322537228-f710d846310a?q=80&w=2000&auto=format&fit=crop");
@@ -29,23 +28,23 @@ st.markdown("""
         border-radius: 20px;
         padding: 30px;
     }
-    /* Left-align buttons and style them */
     .stButton > button {
         width: auto !important;
         background: linear-gradient(90deg, #6c5ce7, #00d2ff) !important;
         color: white !important;
         border: none !important;
-        padding: 10px 25px !important;
+        padding: 10px 20px !important;
         border-radius: 8px !important;
         font-weight: bold !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
+# --- SESSION STATE ---
 if "history" not in st.session_state: st.session_state.history = []
 if "last_result" not in st.session_state: st.session_state.last_result = ""
 
-# --- SIDEBAR (Left Menu) ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.markdown("# 🪄 Menu")
     menu_item = sac.menu([
@@ -54,54 +53,56 @@ with st.sidebar:
         sac.MenuItem('Settings', icon='sliders'),
     ], color='indigo', variant='filled')
 
-# --- MAIN PAGE CONTENT ---
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
+# --- LOGIC: NEW CHAT ---
 if menu_item == 'New Chat':
     st.title("🚀 AI Prompt Generator")
-    user_input = st.text_area("Enter your idea:", placeholder="A futuristic city in space...", height=100)
     
-    # Generate Button (Left Aligned)
-    if st.button("Generate Masterpiece"):
-        if user_input:
-            with st.spinner("Neural Processing..."):
-                try:
-                    model = genai.GenerativeModel('gemini-2.5-flash')
-                    response = model.generate_content(f"Expand this into a professional prompt: {user_input}")
-                    st.session_state.last_result = response.text
-                    st.session_state.history.append({"input": user_input, "output": response.text})
-                except Exception as e:
-                    st.error(f"Error: {e}")
-
-    # Result Section
+    # If a result exists, show the result screen
     if st.session_state.last_result:
-        st.subheader("Enhanced Result")
-        # Native Streamlit code block provides a COPY button automatically in the top right
+        st.subheader("✨ Your Enhanced Prompt")
         st.code(st.session_state.last_result, language="text")
         
-        # Download Button (Left Aligned)
-        col1, col2 = st.columns([1, 4])
+        # Left-aligned action buttons
+        col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
-            st.download_button(
-                label="📥 Download .txt",
-                data=st.session_state.last_result,
-                file_name="ai_prompt.txt",
-                mime="text/plain"
-            )
+            if st.button("🆕 Start New Chat"):
+                st.session_state.last_result = "" # This clears the current screen
+                st.rerun()
+        with col2:
+            st.download_button("📥 Download", st.session_state.last_result, file_name="prompt.txt")
+            
+    # If no result exists, show the input screen
+    else:
+        user_input = st.text_area("What is your idea?", placeholder="Describe your vision...", height=150)
+        if st.button("Generate Masterpiece"):
+            if user_input:
+                with st.spinner("Processing..."):
+                    try:
+                        model = genai.GenerativeModel('gemini-2.5-flash')
+                        response = model.generate_content(f"Expand this into a professional AI prompt: {user_input}")
+                        st.session_state.last_result = response.text
+                        st.session_state.history.append({"input": user_input, "output": response.text})
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
 
+# --- LOGIC: HISTORY ---
 elif menu_item == 'History':
     st.title("📜 Neural Archive")
     if not st.session_state.history:
-        st.info("No history found.")
+        st.info("No history yet.")
     else:
         for i, item in enumerate(reversed(st.session_state.history)):
             with st.expander(f"Prompt #{len(st.session_state.history)-i}"):
-                st.write(f"**Your Input:** {item['input']}")
+                st.write(f"**Input:** {item['input']}")
                 st.code(item['output'], language="text")
 
+# --- LOGIC: SETTINGS ---
 elif menu_item == 'Settings':
-    st.title("⚙️ System Config")
-    st.slider("Processing Temperature", 0.0, 1.0, 0.7)
-    st.radio("Current Model", ["Gemini 2.5 Flash (Active)", "Gemini 3 Pro"])
+    st.title("⚙️ Config")
+    st.slider("Creativity", 0.0, 1.0, 0.7)
+    st.info("System optimized for Gemini 2.5 Flash.")
 
 st.markdown('</div>', unsafe_allow_html=True)

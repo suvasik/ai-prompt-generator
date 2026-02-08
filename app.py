@@ -1,102 +1,95 @@
 import streamlit as st
 import google.generativeai as genai
-import sac # This is streamlit-antd-components
+import streamlit_antd_components as sac  # Updated this line
 
-# --- 1. CONFIGURATION & SECRETS ---
-GEMINI_API_KEY = st.secrets["GEMINI_KEY"]
-genai.configure(api_key=GEMINI_API_KEY)
+# --- 1. CONFIGURATION ---
+try:
+    GEMINI_API_KEY = st.secrets["GEMINI_KEY"]
+    genai.configure(api_key=GEMINI_API_KEY)
+except:
+    st.error("API Key not found in Secrets!")
 
 st.set_page_config(page_title="Prompt Studio", page_icon="🪄", layout="wide")
 
-# --- 2. CUSTOM CSS FOR THE MENU & THEME ---
+# --- 2. THEME & UI ---
 st.markdown("""
     <style>
     .stDeployButton {display:none;}
-    [data-testid="stSidebar"] {background-color: #0e1117;}
+    footer {visibility: hidden;}
     .main {
-        background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
-                    url("https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=2548&auto=format&fit=crop");
+        background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), 
+                    url("https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=2070&auto=format&fit=crop");
         background-size: cover;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. SESSION STATE INITIALIZATION ---
+# Initialize Session States
 if "history" not in st.session_state:
     st.session_state.history = []
-if "current_response" not in st.session_state:
-    st.session_state.current_response = ""
-if "page" not in st.session_state:
-    st.session_state.page = "New Chat"
+if "generated_prompt" not in st.session_state:
+    st.session_state.generated_prompt = ""
 
-# --- 4. SIDEBAR MENU ---
+# --- 3. SIDEBAR MENU ---
 with st.sidebar:
-    st.title("🪄 Prompt Studio")
+    st.title("🪄 AI Menu")
     
-    # The Menu Button System
-    menu_selection = st.radio(
-        "MENU",
-        ["✨ New Chat", "📜 View History", "⚙️ Settings"],
-        index=0
-    )
+    # Using the Ant Design Menu for a professional look
+    menu_item = sac.menu([
+        sac.MenuItem('New Chat', icon='plus-circle-fill'),
+        sac.MenuItem('History', icon='clock-history'),
+        sac.MenuItem('Settings', icon='gear-fill'),
+    ], format_func='title', open_all=True)
 
-# --- 5. LOGIC FOR MENU ACTIONS ---
+# --- 4. APP LOGIC ---
 
-# --- PAGE: SETTINGS ---
-if menu_selection == "⚙️ Settings":
-    st.header("⚙️ App Settings")
-    st.write("Customize your AI experience.")
-    model_choice = st.selectbox("Select Model", ["Gemini 2.5 Flash", "Gemini 3 Pro"])
-    st.slider("Creativity (Temperature)", 0.0, 1.0, 0.7)
-    if st.button("Save Settings"):
-        st.success("Settings Updated!")
+# NEW CHAT PAGE
+if menu_item == 'New Chat':
+    st.title("✨ Create an Enhanced Prompt")
+    
+    user_input = st.text_area("What is your basic idea?", placeholder="e.g. A cat drinking tea in space", height=100)
+    
+    if st.button("Generate Masterpiece"):
+        if user_input:
+            with st.spinner("AI is thinking..."):
+                try:
+                    model = genai.GenerativeModel('gemini-2.5-flash')
+                    response = model.generate_content(f"Act as a Prompt Engineer. Expand this into a high-quality AI prompt: {user_input}")
+                    st.session_state.generated_prompt = response.text
+                    
+                    # Store in history
+                    st.session_state.history.append({"input": user_input, "output": response.text})
+                except Exception as e:
+                    st.error(f"Error: {e}")
+        else:
+            st.warning("Please enter a sentence first.")
 
-# --- PAGE: HISTORY ---
-elif menu_selection == "📜 View History":
-    st.header("📜 Chat History")
+    if st.session_state.generated_prompt:
+        st.subheader("Enhanced Result:")
+        st.info(st.session_state.generated_prompt)
+        if st.button("Clear Result"):
+            st.session_state.generated_prompt = ""
+            st.rerun()
+
+# HISTORY PAGE
+elif menu_item == 'History':
+    st.title("📜 Past Prompts")
     if not st.session_state.history:
-        st.info("No prompts generated yet. Start a new chat!")
+        st.write("No history found.")
     else:
         for i, item in enumerate(reversed(st.session_state.history)):
-            with st.expander(f"Prompt #{len(st.session_state.history) - i}: {item['original'][:30]}..."):
-                st.write(f"**Original:** {item['original']}")
-                st.code(item['enhanced'])
-        if st.button("🗑️ Clear All History"):
+            with st.expander(f"Prompt {len(st.session_state.history)-i}: {item['input'][:40]}..."):
+                st.write(f"**Your Input:** {item['input']}")
+                st.write("**AI Enhanced:**")
+                st.code(item['output'])
+        
+        if st.button("Clear All History"):
             st.session_state.history = []
             st.rerun()
 
-# --- PAGE: NEW CHAT (Main App) ---
-elif menu_selection == "✨ New Chat":
-    st.title("🪄 Enhance Your Prompt")
-    
-    user_input = st.text_area("Enter your basic sentence:", placeholder="What do you want to create?")
-    
-    col1, col2 = st.columns([1, 5])
-    
-    with col1:
-        if st.button("Generate"):
-            if user_input:
-                with st.spinner("Writing..."):
-                    try:
-                        model = genai.GenerativeModel('gemini-2.5-flash')
-                        response = model.generate_content(f"Enhance this prompt professionally: {user_input}")
-                        
-                        # Save to state
-                        st.session_state.current_response = response.text
-                        st.session_state.history.append({
-                            "original": user_input,
-                            "enhanced": response.text
-                        })
-                    except Exception as e:
-                        st.error(f"Error: {e}")
-            else:
-                st.warning("Please enter text.")
-
-    if st.session_state.current_response:
-        st.markdown("### ✨ Enhanced Result")
-        st.info(st.session_state.current_response)
-        
-        # Action Buttons for the result
-        if st.button("🆕 Start Fresh"):
-            st.session_state.current_response = ""
-            st.rerun()
+# SETTINGS PAGE
+elif menu_item == 'Settings':
+    st.title("⚙️ App Settings")
+    st.selectbox("AI Model Version", ["Gemini 2.5 Flash (Fast)", "Gemini 3 Pro (Smart)"])
+    st.slider("Creativity Level", 0.0, 1.0, 0.7)
+    st.write("Current API Status: ✅ Active")

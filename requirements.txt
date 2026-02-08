@@ -1,3 +1,4 @@
 streamlit
 google-generativeai
 streamlit-antd-components
+st-copy-to-clipboard

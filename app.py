@@ -1,6 +1,6 @@
 import streamlit as st
 import google.generativeai as genai
-import streamlit_antd_components as sac  # Updated this line
+import streamlit_antd_components as sac
 
 # --- 1. CONFIGURATION ---
 try:
@@ -11,41 +11,52 @@ except:
 
 st.set_page_config(page_title="Prompt Studio", page_icon="🪄", layout="wide")
 
-# --- 2. THEME & UI ---
-st.markdown("""
-    <style>
-    .stDeployButton {display:none;}
-    footer {visibility: hidden;}
-    .main {
-        background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), 
-                    url("https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=2070&auto=format&fit=crop");
-        background-size: cover;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 # Initialize Session States
 if "history" not in st.session_state:
     st.session_state.history = []
 if "generated_prompt" not in st.session_state:
     st.session_state.generated_prompt = ""
 
-# --- 3. SIDEBAR MENU ---
+# --- 2. SIDEBAR MENU ---
 with st.sidebar:
     st.title("🪄 AI Menu")
-    
-    # Using the Ant Design Menu for a professional look
     menu_item = sac.menu([
         sac.MenuItem('New Chat', icon='plus-circle-fill'),
         sac.MenuItem('History', icon='clock-history'),
         sac.MenuItem('Settings', icon='gear-fill'),
     ], format_func='title', open_all=True)
 
+# --- 3. DYNAMIC BACKGROUND COLORS (CSS) ---
+# We define different gradients for each page
+bg_colors = {
+    'New Chat': "linear-gradient(135deg, #1e1e2f 0%, #2d3436 100%)", # Dark Slate
+    'History': "linear-gradient(135deg, #2c3e50 0%, #000000 100%)",  # Midnight Blue
+    'Settings': "linear-gradient(135deg, #0f0c29 0%, #302b63 100%)" # Deep Purple
+}
+
+selected_bg = bg_colors.get(menu_item, "#0e1117")
+
+st.markdown(f"""
+    <style>
+    .stApp {{
+        background: {selected_bg};
+        color: white;
+    }}
+    .stDeployButton {{display:none;}}
+    /* Style inputs to look better on dark backgrounds */
+    .stTextArea textarea {{
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
 # --- 4. APP LOGIC ---
 
-# NEW CHAT PAGE
 if menu_item == 'New Chat':
     st.title("✨ Create an Enhanced Prompt")
+    st.write("Current Theme: **Generator Mode**")
     
     user_input = st.text_area("What is your basic idea?", placeholder="e.g. A cat drinking tea in space", height=100)
     
@@ -56,8 +67,6 @@ if menu_item == 'New Chat':
                     model = genai.GenerativeModel('gemini-2.5-flash')
                     response = model.generate_content(f"Act as a Prompt Engineer. Expand this into a high-quality AI prompt: {user_input}")
                     st.session_state.generated_prompt = response.text
-                    
-                    # Store in history
                     st.session_state.history.append({"input": user_input, "output": response.text})
                 except Exception as e:
                     st.error(f"Error: {e}")
@@ -67,29 +76,21 @@ if menu_item == 'New Chat':
     if st.session_state.generated_prompt:
         st.subheader("Enhanced Result:")
         st.info(st.session_state.generated_prompt)
-        if st.button("Clear Result"):
-            st.session_state.generated_prompt = ""
-            st.rerun()
 
-# HISTORY PAGE
 elif menu_item == 'History':
     st.title("📜 Past Prompts")
+    st.write("Current Theme: **Archive Mode**")
     if not st.session_state.history:
-        st.write("No history found.")
+        st.info("Your history is empty.")
     else:
         for i, item in enumerate(reversed(st.session_state.history)):
-            with st.expander(f"Prompt {len(st.session_state.history)-i}: {item['input'][:40]}..."):
-                st.write(f"**Your Input:** {item['input']}")
-                st.write("**AI Enhanced:**")
+            with st.expander(f"Prompt {len(st.session_state.history)-i}"):
+                st.write(f"**Input:** {item['input']}")
                 st.code(item['output'])
-        
-        if st.button("Clear All History"):
-            st.session_state.history = []
-            st.rerun()
 
-# SETTINGS PAGE
 elif menu_item == 'Settings':
     st.title("⚙️ App Settings")
-    st.selectbox("AI Model Version", ["Gemini 2.5 Flash (Fast)", "Gemini 3 Pro (Smart)"])
-    st.slider("Creativity Level", 0.0, 1.0, 0.7)
-    st.write("Current API Status: ✅ Active")
+    st.write("Current Theme: **Configuration Mode**")
+    st.color_picker("Pick a custom accent color", "#00FFAA")
+    st.toggle("Enable Advanced Logic")
+    st.button("Reset App Cache")

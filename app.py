@@ -11,48 +11,43 @@ except:
 
 st.set_page_config(page_title="Prompt Studio", page_icon="🪄", layout="wide")
 
-# --- CUSTOM CSS (Blue AI Gradient + Glassmorphism) ---
-st.markdown("""
+# --- CSS FOR YOUR CUSTOM BLUE GRADIENT BACKGROUND ---
+st.markdown(f"""
     <style>
-    .stDeployButton {display:none;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    .stDeployButton {{display:none;}}
+    footer {{visibility: hidden;}}
+    header {{visibility: hidden;}}
 
-    /* Background Image with Blue Gradient & AI Icons */
-    .stApp {
-        background: linear-gradient(rgba(10, 10, 45, 0.7), rgba(10, 10, 45, 0.7)), 
-                    url("https://img.freepik.com/free-vector/digital-technology-background-with-abstract-geometric-shapes_1017-38917.jpg");
+    /* THE BACKGROUND IMAGE SETTING */
+    .stApp {{
+        background: linear-gradient(rgba(0, 0, 50, 0.5), rgba(0, 0, 50, 0.5)), 
+                    url("REPLACE_WITH_YOUR_IMAGE_LINK_HERE");
         background-size: cover;
+        background-position: center;
         background-attachment: fixed;
-    }
+    }}
 
-    /* Main Glass Container */
-    .main-box {
-        background: rgba(255, 255, 255, 0.07);
-        backdrop-filter: blur(20px);
+    /* Main Box Styling */
+    .main-box {{
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 25px;
-        padding: 40px;
+        border-radius: 20px;
+        padding: 30px;
         margin-top: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }
+    }}
 
-    /* Button Styling */
-    .stButton > button {
+    /* Left-aligned Button Design */
+    .stButton > button {{
         width: auto !important;
-        background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%) !important;
+        background: linear-gradient(90deg, #00d2ff, #3a7bd5) !important;
         color: white !important;
         border: none !important;
-        padding: 12px 24px !important;
-        border-radius: 10px !important;
+        padding: 10px 25px !important;
+        border-radius: 8px !important;
         font-weight: bold !important;
-        transition: 0.3s ease;
-    }
-    
-    .stButton > button:hover {
-        transform: scale(1.05);
-        box-shadow: 0 0 15px rgba(0, 210, 255, 0.5) !important;
-    }
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -60,68 +55,66 @@ st.markdown("""
 if "history" not in st.session_state: st.session_state.history = []
 if "last_result" not in st.session_state: st.session_state.last_result = ""
 
-# --- SIDEBAR (Left Menu) ---
+# --- SIDEBAR MENU ---
 with st.sidebar:
-    st.markdown("<h1 style='color:white;'>🪄 Studio</h1>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color:white;'>🪄 Navigation</h2>", unsafe_allow_html=True)
     menu_item = sac.menu([
-        sac.MenuItem('New Chat', icon='plus-circle-fill'),
+        sac.MenuItem('New Chat', icon='chat-left-dots-fill'),
         sac.MenuItem('History', icon='clock-history'),
-        sac.MenuItem('Settings', icon='gear-wide-connected'),
+        sac.MenuItem('Settings', icon='gear-fill'),
     ], color='blue', variant='filled')
 
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
-# --- LOGIC: NEW CHAT ---
+# --- NEW CHAT LOGIC ---
 if menu_item == 'New Chat':
-    st.markdown("<h1 style='color:white;'>🚀 AI Prompt Generator</h1>", unsafe_allow_html=True)
+    st.title("🚀 AI Prompt Generator")
     
-    # OUTPUT SCREEN
     if st.session_state.last_result:
-        st.markdown("<h3 style='color:#00d2ff;'>✨ Enhanced Result</h3>", unsafe_allow_html=True)
-        # Built-in Copy functionality
+        st.subheader("✨ Enhanced Result")
+        # Native Streamlit code block provides the 'Copy' button in the top right
         st.code(st.session_state.last_result, language="text")
         
-        # Left-aligned action buttons
-        col1, col2, _ = st.columns([1.2, 1.2, 4])
+        # Action Buttons (Left Aligned)
+        col1, col2, _ = st.columns([1, 1, 4])
         with col1:
-            if st.button("🆕 Start New Chat"):
+            if st.button("🆕 New Chat"):
                 st.session_state.last_result = ""
                 st.rerun()
         with col2:
-            st.download_button("📥 Download .txt", st.session_state.last_result, file_name="prompt.txt")
+            st.download_button("📥 Download", st.session_state.last_result, file_name="ai_prompt.txt")
             
-    # INPUT SCREEN
     else:
-        user_input = st.text_area("What's your vision?", placeholder="A futuristic laboratory with holographic displays...", height=150)
+        user_input = st.text_area("What is your idea?", placeholder="Type your base prompt here...", height=120)
         if st.button("Generate Masterpiece"):
             if user_input:
-                with st.spinner("Decoding your thoughts..."):
+                with st.spinner("AI is crafting your prompt..."):
                     try:
                         model = genai.GenerativeModel('gemini-2.5-flash')
-                        response = model.generate_content(f"Expand this into a professional prompt: {user_input}")
+                        response = model.generate_content(f"Expand this into a detailed AI prompt: {user_input}")
                         st.session_state.last_result = response.text
                         st.session_state.history.append({"input": user_input, "output": response.text})
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Neural Error: {e}")
+                        st.error(f"Error: {e}")
 
-# --- LOGIC: HISTORY ---
+# --- HISTORY LOGIC ---
 elif menu_item == 'History':
-    st.markdown("<h1 style='color:white;'>📜 Neural Archive</h1>", unsafe_allow_html=True)
+    st.title("📜 Chat History")
     if not st.session_state.history:
-        st.info("The archive is empty.")
+        st.info("No saved prompts yet.")
     else:
         for i, item in enumerate(reversed(st.session_state.history)):
             with st.expander(f"Prompt #{len(st.session_state.history)-i}"):
-                st.write(f"**Request:** {item['input']}")
+                st.write(f"**Input:** {item['input']}")
                 st.code(item['output'], language="text")
 
-# --- LOGIC: SETTINGS ---
+# --- SETTINGS LOGIC ---
 elif menu_item == 'Settings':
-    st.markdown("<h1 style='color:white;'>⚙️ System Config</h1>", unsafe_allow_html=True)
-    st.slider("Model Temperature (Creativity)", 0.0, 1.0, 0.7)
-    if st.button("🗑️ Clear All History"):
+    st.title("⚙️ Settings")
+    st.slider("AI Creativity", 0.0, 1.0, 0.7)
+    if st.button("🗑️ Clear History"):
         st.session_state.history = []
-        st.success("Archive Cleared!")
+        st.success("History deleted!")
 
 st.markdown('</div>', unsafe_allow_html=True)

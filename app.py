@@ -91,14 +91,15 @@ if menu_item == 'New Chat':
             if user_input:
                 with st.spinner("Neural Processing..."):
                     try:
-                        # FIXED MODEL NAME HERE
-                        model = genai.GenerativeModel('gemini-1.5-flash-latest') 
+                        # UPDATED MODEL NAME FOR 2.x/2.5 FLASH FAMILY
+                        model = genai.GenerativeModel('gemini-2.0-flash') 
                         response = model.generate_content(f"Expand this into a professional prompt: {user_input}")
                         st.session_state.last_result = response.text
                         st.session_state.history.append({"input": user_input, "output": response.text})
                         st.rerun() 
                     except Exception as e:
                         st.error(f"Model Error: {e}")
+                        st.info("Try checking 'Settings' to see available models.")
             else:
                 st.warning("Please enter some text.")
 
@@ -113,7 +114,17 @@ elif menu_item == 'History':
                 st.code(item['output'], language="text")
 
 elif menu_item == 'Settings':
-    st.title("⚙️ Config")
+    st.title("⚙️ Config & Debug")
+    
+    # DEBUG TOOL: List models if the user is having errors
+    if st.button("🔍 Check Available Models"):
+        try:
+            models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            st.write("Your API Key has access to:")
+            st.json(models)
+        except Exception as e:
+            st.error(f"Could not list models: {e}")
+
     st.slider("AI Creativity", 0.0, 1.0, 0.7)
     if st.button("🗑️ Reset All History"):
         st.session_state.history = []

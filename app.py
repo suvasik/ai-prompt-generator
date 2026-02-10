@@ -12,14 +12,14 @@ except:
 st.set_page_config(page_title="Prompt Studio", page_icon="🪄", layout="wide")
 
 # --- 2. THE CUSTOM IMAGE BACKGROUND CSS ---
-# Note: I'm using the URL of the image I just generated for you.
+# Using the URL of the AI image
 bg_img_url = "https://alkasapi.googleusercontent.com/image_generation_content/3"
 
 st.markdown(f"""
     <style>
-    .stDeployButton {{display:none;}}
-    footer {{visibility: hidden;}}
-    header {{visibility: hidden;}}
+    .stDeployButton {{ display:none; }}
+    footer {{ visibility: hidden; }}
+    header {{ visibility: hidden; }}
 
     /* FIXED IMAGE BACKGROUND WITH GRADIENT OVERLAY */
     .stApp {{
@@ -28,7 +28,7 @@ st.markdown(f"""
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
-    }
+    }}
 
     /* MAIN CONTAINER (Glassmorphism) */
     .main-box {{
@@ -42,12 +42,7 @@ st.markdown(f"""
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
     }}
 
-    /* TOP NAVIGATION TABS */
-    .nav-container {{
-        margin-bottom: 25px;
-    }}
-
-    /* NEON CYAN BUTTONS (Z-indexed to stay on top) */
+    /* NEON CYAN BUTTONS */
     div.stButton > button {{
         background-color: #00f2fe !important;
         color: #050b1a !important;
@@ -56,8 +51,6 @@ st.markdown(f"""
         border-radius: 12px !important;
         font-weight: 900 !important;
         box-shadow: 0px 0px 20px rgba(0, 242, 254, 0.6) !important;
-        position: relative;
-        z-index: 99;
     }}
 
     div.stButton > button:hover {{
@@ -69,7 +62,6 @@ st.markdown(f"""
     /* TEXT COLORS */
     h1, h2, h3, p, label, span {{
         color: #ffffff !important;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }}
 
     /* INPUT TEXT AREA */
@@ -77,10 +69,9 @@ st.markdown(f"""
         background: rgba(0, 0, 0, 0.6) !important;
         color: white !important;
         border: 1px solid rgba(0, 242, 254, 0.5) !important;
-        border-radius: 10px;
     }}
     </style>
-""", unsafe_allow_html=True)
+""",   unsafe_allow_html=True)
 
 # --- 3. SESSION STATE ---
 if "history" not in st.session_state: st.session_state.history = []
@@ -115,7 +106,7 @@ if menu_item == 'New Chat':
         user_input = st.text_area("Your Idea:", placeholder="e.g., A cyborg wolf in a neon forest...", height=150)
         if st.button("GENERATE MASTERPIECE"):
             if user_input:
-                with st.spinner("Gemini 2.5 is crafting your prompt..."):
+                with st.spinner("Gemini 2.5 is crafting..."):
                     try:
                         model = genai.GenerativeModel('gemini-2.5-flash') 
                         response = model.generate_content(f"Expand this into a professional AI prompt: {user_input}")
@@ -128,7 +119,7 @@ if menu_item == 'New Chat':
 elif menu_item == 'History':
     st.title("📜 Archive")
     if not st.session_state.history:
-        st.info("No records yet. Start a chat above!")
+        st.info("No records yet.")
     else:
         for i, item in enumerate(reversed(st.session_state.history)):
             with st.expander(f"Prompt #{len(st.session_state.history)-i}"):
@@ -137,11 +128,9 @@ elif menu_item == 'History':
 
 elif menu_item == 'Settings':
     st.title("⚙️ System Settings")
-    st.write("Current Engine: **Gemini 2.5 Flash**")
     if st.button("🗑️ Reset All Data"):
         st.session_state.history = []
         st.session_state.last_result = ""
-        st.success("Cleared!")
         st.rerun()
 
 st.markdown('</div>', unsafe_allow_html=True)

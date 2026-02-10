@@ -11,81 +11,74 @@ except:
 
 st.set_page_config(page_title="Prompt Studio", page_icon="🪄", layout="wide")
 
-# --- 2. THE "TOP NAV & NEON" CSS ---
-st.markdown("""
-    <style>
-    .stDeployButton {display:none;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+# --- 2. THE CUSTOM IMAGE BACKGROUND CSS ---
+# Note: I'm using the URL of the image I just generated for you.
+bg_img_url = "https://alkasapi.googleusercontent.com/image_generation_content/3"
 
-    /* DEEP NAVY BACKGROUND */
-    .stApp {
-        background: radial-gradient(circle at top right, #050b1a 0%, #00050d 100%) !important;
+st.markdown(f"""
+    <style>
+    .stDeployButton {{display:none;}}
+    footer {{visibility: hidden;}}
+    header {{visibility: hidden;}}
+
+    /* FIXED IMAGE BACKGROUND WITH GRADIENT OVERLAY */
+    .stApp {{
+        background: linear-gradient(rgba(5, 11, 26, 0.8), rgba(5, 11, 26, 0.8)), 
+                    url("{bg_img_url}");
+        background-size: cover;
+        background-position: center;
         background-attachment: fixed;
     }
 
-    /* TEXTURE OVERLAY */
-    .stApp::before {
-        content: "";
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background-image: url("https://www.transparenttextures.com/patterns/circuit-board.png");
-        opacity: 0.1;
-        pointer-events: none;
-        z-index: 0;
-    }
-
-    /* MAIN CONTAINER */
-    .main-box {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
+    /* MAIN CONTAINER (Glassmorphism) */
+    .main-box {{
+        background: rgba(255, 255, 255, 0.07);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 20px;
-        padding: 30px;
-        position: relative;
-        z-index: 1;
+        padding: 40px;
         margin-top: 20px;
-    }
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+    }}
 
-    /* TOP NAVIGATION STYLING */
-    .nav-container {
-        background: rgba(0, 0, 0, 0.5);
-        padding: 10px;
-        border-radius: 15px;
-        margin-bottom: 20px;
-    }
+    /* TOP NAVIGATION TABS */
+    .nav-container {{
+        margin-bottom: 25px;
+    }}
 
-    /* NEON CYAN BUTTONS */
-    div.stButton > button {
+    /* NEON CYAN BUTTONS (Z-indexed to stay on top) */
+    div.stButton > button {{
         background-color: #00f2fe !important;
         color: #050b1a !important;
         border: 2px solid #ffffff !important;
         padding: 12px 35px !important;
-        border-radius: 10px !important;
-        font-size: 16px !important;
+        border-radius: 12px !important;
         font-weight: 900 !important;
-        box-shadow: 0px 0px 15px rgba(0, 242, 254, 0.5) !important;
-        visibility: visible !important;
-        z-index: 999 !important;
-    }
+        box-shadow: 0px 0px 20px rgba(0, 242, 254, 0.6) !important;
+        position: relative;
+        z-index: 99;
+    }}
 
-    div.stButton > button:hover {
+    div.stButton > button:hover {{
         background-color: #ffffff !important;
-        box-shadow: 0px 0px 25px rgba(255, 255, 255, 0.8) !important;
-        transform: scale(1.02);
-    }
+        box-shadow: 0px 0px 30px rgba(255, 255, 255, 0.8) !important;
+        transform: scale(1.05);
+    }}
 
     /* TEXT COLORS */
-    h1, h2, h3, p, label, span {
+    h1, h2, h3, p, label, span {{
         color: #ffffff !important;
-    }
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }}
 
-    /* INPUT AREA */
-    .stTextArea textarea {
-        background: rgba(0, 0, 0, 0.5) !important;
+    /* INPUT TEXT AREA */
+    .stTextArea textarea {{
+        background: rgba(0, 0, 0, 0.6) !important;
         color: white !important;
-        border: 1px solid #00f2fe !important;
-    }
+        border: 1px solid rgba(0, 242, 254, 0.5) !important;
+        border-radius: 10px;
+    }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -93,17 +86,16 @@ st.markdown("""
 if "history" not in st.session_state: st.session_state.history = []
 if "last_result" not in st.session_state: st.session_state.last_result = ""
 
-# --- 4. TOP NAVIGATION BAR ---
-# This replaces the sidebar menu
+# --- 4. TOP NAVIGATION ---
 menu_item = sac.tabs([
-    sac.TabsItem(label='New Chat', icon='chat-left-dots-fill'),
-    sac.TabsItem(label='History', icon='clock-history'),
+    sac.TabsItem(label='New Chat', icon='chat-square-text-fill'),
+    sac.TabsItem(label='History', icon='clock-fill'),
     sac.TabsItem(label='Settings', icon='gear-fill'),
 ], align='center', variant='toggle', color='cyan', index=0)
 
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
-# --- 5. PAGE LOGIC ---
+# --- 5. LOGIC ---
 if menu_item == 'New Chat':
     st.title("🚀 Prompt Generator")
     
@@ -120,14 +112,13 @@ if menu_item == 'New Chat':
             st.download_button("📥 Download", st.session_state.last_result, file_name="ai_prompt.txt")
             
     else:
-        user_input = st.text_area("Your Idea:", placeholder="Describe your vision...", height=150)
+        user_input = st.text_area("Your Idea:", placeholder="e.g., A cyborg wolf in a neon forest...", height=150)
         if st.button("GENERATE MASTERPIECE"):
             if user_input:
-                with st.spinner("AI 2.5 Processing..."):
+                with st.spinner("Gemini 2.5 is crafting your prompt..."):
                     try:
-                        # KEEPING GEMINI 2.5 FLASH
                         model = genai.GenerativeModel('gemini-2.5-flash') 
-                        response = model.generate_content(f"Expand into a pro prompt: {user_input}")
+                        response = model.generate_content(f"Expand this into a professional AI prompt: {user_input}")
                         st.session_state.last_result = response.text
                         st.session_state.history.append({"input": user_input, "output": response.text})
                         st.rerun()
@@ -137,7 +128,7 @@ if menu_item == 'New Chat':
 elif menu_item == 'History':
     st.title("📜 Archive")
     if not st.session_state.history:
-        st.info("No records yet. Go to 'New Chat' to start.")
+        st.info("No records yet. Start a chat above!")
     else:
         for i, item in enumerate(reversed(st.session_state.history)):
             with st.expander(f"Prompt #{len(st.session_state.history)-i}"):
@@ -146,7 +137,7 @@ elif menu_item == 'History':
 
 elif menu_item == 'Settings':
     st.title("⚙️ System Settings")
-    st.write("Model: **Gemini 2.5 Flash**")
+    st.write("Current Engine: **Gemini 2.5 Flash**")
     if st.button("🗑️ Reset All Data"):
         st.session_state.history = []
         st.session_state.last_result = ""

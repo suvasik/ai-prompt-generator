@@ -11,7 +11,7 @@ except:
 
 st.set_page_config(page_title="Prompt Studio", page_icon="🪄", layout="wide")
 
-# --- 2. DARK UI CSS (Visible Buttons & Textures) ---
+# --- 2. THE "TOP NAV & NEON" CSS ---
 st.markdown("""
     <style>
     .stDeployButton {display:none;}
@@ -20,97 +20,97 @@ st.markdown("""
 
     /* DEEP NAVY BACKGROUND */
     .stApp {
-        background: radial-gradient(circle at top right, #050b1a 0%, #00050d 100%);
+        background: radial-gradient(circle at top right, #050b1a 0%, #00050d 100%) !important;
         background-attachment: fixed;
     }
 
-    /* AI TEXTURE OVERLAY */
+    /* TEXTURE OVERLAY */
     .stApp::before {
         content: "";
         position: absolute;
         top: 0; left: 0; width: 100%; height: 100%;
         background-image: url("https://www.transparenttextures.com/patterns/circuit-board.png");
-        opacity: 0.12;
+        opacity: 0.1;
         pointer-events: none;
+        z-index: 0;
     }
 
-    /* GLASS CONTAINER */
+    /* MAIN CONTAINER */
     .main-box {
-        background: rgba(255, 255, 255, 0.04);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 20px;
-        padding: 40px;
-        margin-top: 10px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+        padding: 30px;
+        position: relative;
+        z-index: 1;
+        margin-top: 20px;
     }
 
-    /* VISIBLE BUTTONS (White with Deep Blue Text) */
-    .stButton > button {
-        width: auto !important;
-        background-color: #ffffff !important; 
-        color: #050b1a !important; 
-        border: 2px solid #00d2ff !important;
-        padding: 10px 30px !important;
+    /* TOP NAVIGATION STYLING */
+    .nav-container {
+        background: rgba(0, 0, 0, 0.5);
+        padding: 10px;
+        border-radius: 15px;
+        margin-bottom: 20px;
+    }
+
+    /* NEON CYAN BUTTONS */
+    div.stButton > button {
+        background-color: #00f2fe !important;
+        color: #050b1a !important;
+        border: 2px solid #ffffff !important;
+        padding: 12px 35px !important;
         border-radius: 10px !important;
-        font-weight: 800 !important;
-        text-transform: uppercase;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
+        font-size: 16px !important;
+        font-weight: 900 !important;
+        box-shadow: 0px 0px 15px rgba(0, 242, 254, 0.5) !important;
         visibility: visible !important;
-        display: block !important;
+        z-index: 999 !important;
     }
 
-    .stButton > button:hover {
-        background-color: #00d2ff !important;
-        color: white !important;
-        border: 2px solid white !important;
+    div.stButton > button:hover {
+        background-color: #ffffff !important;
+        box-shadow: 0px 0px 25px rgba(255, 255, 255, 0.8) !important;
+        transform: scale(1.02);
     }
 
     /* TEXT COLORS */
-    h1, h2, h3, p, label { color: white !important; }
+    h1, h2, h3, p, label, span {
+        color: #ffffff !important;
+    }
 
-    /* INPUT FIELD */
+    /* INPUT AREA */
     .stTextArea textarea {
-        background: rgba(0, 0, 0, 0.3) !important;
+        background: rgba(0, 0, 0, 0.5) !important;
         color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.3) !important;
-        border-radius: 12px;
+        border: 1px solid #00f2fe !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. STATE MANAGEMENT ---
+# --- 3. SESSION STATE ---
 if "history" not in st.session_state: st.session_state.history = []
 if "last_result" not in st.session_state: st.session_state.last_result = ""
 
-# --- 4. SIDEBAR ---
-with st.sidebar:
-    st.markdown("<h2 style='color:white;'>🪄 Studio</h2>", unsafe_allow_html=True)
-    menu_item = sac.menu([
-        sac.MenuItem('New Chat', icon='plus-square-fill'),
-        sac.MenuItem('History', icon='clock-fill'),
-        sac.MenuItem('Settings', icon='gear-wide-connected'),
-    ], color='blue', variant='filled', index=0)
-
-# Clear last_result if the sidebar 'New Chat' is explicitly clicked
-if menu_item == 'New Chat' and st.sidebar.button("🔄 Reset View", use_container_width=True):
-    st.session_state.last_result = ""
-    st.rerun()
+# --- 4. TOP NAVIGATION BAR ---
+# This replaces the sidebar menu
+menu_item = sac.tabs([
+    sac.TabsItem(label='New Chat', icon='chat-left-dots-fill'),
+    sac.TabsItem(label='History', icon='clock-history'),
+    sac.TabsItem(label='Settings', icon='gear-fill'),
+], align='center', variant='toggle', color='cyan', index=0)
 
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
-# --- 5. LOGIC FLOW ---
-
+# --- 5. PAGE LOGIC ---
 if menu_item == 'New Chat':
     st.title("🚀 Prompt Generator")
     
-    # Check if we should display the result
     if st.session_state.last_result:
-        st.subheader("✨ Generated Masterpiece")
+        st.subheader("✨ Enhanced Result")
         st.code(st.session_state.last_result, language="text")
         
-        # Row for working buttons
         col1, col2, _ = st.columns([1, 1, 4])
         with col1:
             if st.button("🆕 New Chat"):
@@ -120,27 +120,24 @@ if menu_item == 'New Chat':
             st.download_button("📥 Download", st.session_state.last_result, file_name="ai_prompt.txt")
             
     else:
-        # Input Screen
-        user_input = st.text_area("What is your vision?", placeholder="A futuristic city with bioluminescent neon lights...", height=150)
-        if st.button("GENERATE PROMPT"):
+        user_input = st.text_area("Your Idea:", placeholder="Describe your vision...", height=150)
+        if st.button("GENERATE MASTERPIECE"):
             if user_input:
-                with st.spinner("Gemini 2.5 is processing..."):
+                with st.spinner("AI 2.5 Processing..."):
                     try:
-                        # USING 2.5 VERSION
+                        # KEEPING GEMINI 2.5 FLASH
                         model = genai.GenerativeModel('gemini-2.5-flash') 
-                        response = model.generate_content(f"Expand this into a professional AI prompt: {user_input}")
+                        response = model.generate_content(f"Expand into a pro prompt: {user_input}")
                         st.session_state.last_result = response.text
                         st.session_state.history.append({"input": user_input, "output": response.text})
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error: {e}")
-            else:
-                st.warning("Please enter some text first.")
 
 elif menu_item == 'History':
-    st.title("📜 Neural Archive")
+    st.title("📜 Archive")
     if not st.session_state.history:
-        st.info("Your archive is empty.")
+        st.info("No records yet. Go to 'New Chat' to start.")
     else:
         for i, item in enumerate(reversed(st.session_state.history)):
             with st.expander(f"Prompt #{len(st.session_state.history)-i}"):
@@ -148,12 +145,12 @@ elif menu_item == 'History':
                 st.code(item['output'], language="text")
 
 elif menu_item == 'Settings':
-    st.title("⚙️ Config")
-    st.slider("AI Creativity", 0.0, 1.0, 0.7)
-    if st.button("🗑️ Clear Archive"):
+    st.title("⚙️ System Settings")
+    st.write("Model: **Gemini 2.5 Flash**")
+    if st.button("🗑️ Reset All Data"):
         st.session_state.history = []
         st.session_state.last_result = ""
-        st.success("History wiped.")
+        st.success("Cleared!")
         st.rerun()
 
 st.markdown('</div>', unsafe_allow_html=True)

@@ -18,13 +18,13 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
 
-    /* DEEP NAVY GRADIENT */
+    /* DARK BLUE GRADIENT BACKGROUND */
     .stApp {
         background: radial-gradient(circle at top right, #050b1a 0%, #00050d 100%);
         background-attachment: fixed;
     }
 
-    /* TEXTURED OVERLAY (Small icons/Circuit pattern) */
+    /* SMALL PICTURES/TEXTURES IN BACKGROUND */
     .stApp::before {
         content: "";
         position: absolute;
@@ -34,7 +34,7 @@ st.markdown("""
         pointer-events: none;
     }
 
-    /* GLASS CONTAINER */
+    /* MAIN GLASS CONTAINER */
     .main-box {
         background: rgba(255, 255, 255, 0.03);
         backdrop-filter: blur(20px);
@@ -46,7 +46,7 @@ st.markdown("""
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
     }
 
-    /* HIGH-VISIBILITY BUTTONS */
+    /* VISIBLE BUTTONS (White with Dark Blue Text) */
     .stButton > button {
         width: auto !important;
         background: #ffffff !important; 
@@ -65,6 +65,7 @@ st.markdown("""
         transform: scale(1.03);
     }
 
+    /* TEXT COLORS */
     h1, h2, h3, p, label { color: white !important; }
 
     .stTextArea textarea {
@@ -76,13 +77,13 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- SESSION STATE ---
+# --- SESSION STATE (Memory) ---
 if "history" not in st.session_state: st.session_state.history = []
 if "last_result" not in st.session_state: st.session_state.last_result = ""
 
-# --- SIDEBAR ---
+# --- SIDEBAR MENU ---
 with st.sidebar:
-    st.markdown("<h1 style='color:white; font-size: 25px;'>🪄 Neural Studio</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color:white; font-size: 25px;'>🪄 Studio Menu</h1>", unsafe_allow_html=True)
     menu_item = sac.menu([
         sac.MenuItem('New Chat', icon='plus-square-fill'),
         sac.MenuItem('History', icon='clock-fill'),
@@ -91,60 +92,61 @@ with st.sidebar:
 
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
-# --- LOGIC ---
+# --- NAVIGATION LOGIC ---
 
 if menu_item == 'New Chat':
-    st.title("🚀 AI Prompt Generator")
+    st.title("🚀 Prompt Generator")
     
-    # If a result is currently active, show the Result View
+    # If a prompt was generated, show the RESULT SCREEN
     if st.session_state.last_result:
-        st.subheader("✨ Generated Prompt")
+        st.subheader("✨ Generated Result")
         st.code(st.session_state.last_result, language="text")
         
+        # Left-aligned control buttons
         col1, col2, _ = st.columns([1, 1, 4])
         with col1:
-            # Clicking this clears the "result state" and returns to input
-            if st.button("🆕 Start New Chat"):
-                st.session_state.last_result = ""
+            if st.button("🆕 New Chat"):
+                st.session_state.last_result = "" # Clear result to go back to input box
                 st.rerun()
         with col2:
             st.download_button("📥 Download", st.session_state.last_result, file_name="ai_prompt.txt")
             
-    # If no result is active, show the Input View
+    # If starting fresh, show the INPUT SCREEN
     else:
-        user_input = st.text_area("What is your vision?", placeholder="A futuristic city with holographic trees...", height=150)
+        user_input = st.text_area("What is your vision?", placeholder="A futuristic laboratory with bioluminescent plants...", height=150)
         if st.button("Generate Masterpiece"):
             if user_input:
-                with st.spinner("AI 2.5 is thinking..."):
+                with st.spinner("AI 2.5 is processing..."):
                     try:
-                        # USING GEMINI 2.0 FLASH (The API Name for the 2.x family)
-                        model = genai.GenerativeModel('gemini-2.0-flash') 
+                        # USING GEMINI 2.5 FLASH AS REQUESTED
+                        model = genai.GenerativeModel('gemini-2.5-flash') 
                         response = model.generate_content(f"Expand this into a professional AI prompt: {user_input}")
                         st.session_state.last_result = response.text
                         st.session_state.history.append({"input": user_input, "output": response.text})
                         st.rerun()
                     except Exception as e:
                         if "429" in str(e):
-                            st.error("🚦 Rate Limit: Google's Free Tier is resting. Wait 60s and try again.")
+                            st.error("🚦 Rate Limit Reached. Please wait 1 minute and try again.")
                         else:
                             st.error(f"Error: {e}")
 
 elif menu_item == 'History':
-    st.title("📜 Archive")
+    st.title("📜 Neural Archive")
     if not st.session_state.history:
-        st.info("No records yet.")
+        st.info("No saved prompts yet.")
     else:
         for i, item in enumerate(reversed(st.session_state.history)):
             with st.expander(f"Prompt #{len(st.session_state.history)-i}"):
-                st.write(f"**Input:** {item['input']}")
+                st.write(f"**Idea:** {item['input']}")
                 st.code(item['output'], language="text")
 
 elif menu_item == 'Settings':
-    st.title("⚙️ System")
-    st.slider("Creativity", 0.0, 1.0, 0.7)
-    if st.button("🗑️ Reset All Data"):
+    st.title("⚙️ Config")
+    st.slider("AI Temperature", 0.0, 1.0, 0.7)
+    if st.button("🗑️ Clear Archive"):
         st.session_state.history = []
         st.session_state.last_result = ""
+        st.success("History wiped.")
         st.rerun()
 
 st.markdown('</div>', unsafe_allow_html=True)

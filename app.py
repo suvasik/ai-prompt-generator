@@ -82,7 +82,7 @@ if menu_item == 'Generator':
         user_input = st.text_area("What are we creating today?")
         if st.button("GENERATE"):
             # 1. Generate AI Content
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-2.5-flash')
             response = model.generate_content(user_input)
             
             # 2. Update logic
@@ -99,3 +99,4 @@ elif menu_item == 'History':
             st.write(item['output_text'])
 
 st.markdown('</div>', unsafe_allow_html=True)
+

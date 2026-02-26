@@ -3,100 +3,118 @@ import google.generativeai as genai
 import streamlit_antd_components as sac
 from supabase import create_client, Client
 
-# --- 1. INITIALIZE SUPABASE ---
-url = st.secrets["SUPABASE_URL"]
-key = st.secrets["SUPABASE_KEY"]
-supabase: Client = create_client(url, key)
+# --- 1. CONFIG & DB SETUP ---
+st.set_page_config(page_title="Prompt Studio", page_icon="🪄", layout="wide")
 
-# --- 2. CONFIG & GENAI ---
-st.set_page_config(page_title="Prompt Studio Pro", page_icon="🪄", layout="wide")
-genai.configure(api_key=st.secrets["GEMINI_KEY"])
+try:
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    supabase: Client = create_client(url, key)
+    genai.configure(api_key=st.secrets["GEMINI_KEY"])
+except Exception as e:
+    st.error("Missing configuration keys in Secrets!")
 
-# --- 3. SESSION STATE MANAGEMENT ---
+# --- 2. THE UI (Legacy Gradient + Glassmorphism) ---
+st.markdown("""
+    <style>
+    .stApp {
+        background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+        background-attachment: fixed;
+    }
+    .main-box {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 25px;
+        padding: 40px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+    }
+    div.stButton > button {
+        background-color: #00f2fe !important;
+        color: #050b1a !important;
+        border-radius: 12px !important;
+        font-weight: 900 !important;
+        width: 100%;
+    }
+    h1, h2, h3, p, label, span { color: #ffffff !important; }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- 3. SESSION STATE ---
 if "usage_count" not in st.session_state: st.session_state.usage_count = 0
 if "user" not in st.session_state: st.session_state.user = None
 if "history" not in st.session_state: st.session_state.history = []
+if "last_result" not in st.session_state: st.session_state.last_result = ""
 
-# --- 4. AUTH FUNCTIONS ---
-def sign_up(email, password):
-    try:
-        res = supabase.auth.sign_up({"email": email, "password": password})
-        st.success("Check your email for confirmation!")
-    except Exception as e:
-        st.error(f"Error: {e}")
-
-def login(email, password):
-    try:
-        res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-        st.session_state.user = res.user
-        # Fetch history from DB after login
-        fetch_history()
-        st.rerun()
-    except Exception as e:
-        st.error("Invalid login credentials")
-
-def fetch_history():
+# --- 4. SIDEBAR LOGIN ---
+with st.sidebar:
+    st.title("🔑 Access")
     if st.session_state.user:
-        res = supabase.table("user_prompts").select("*").eq("user_id", st.session_state.user.id).execute()
-        st.session_state.history = res.data
+        st.success(f"Logged in: {st.session_state.user.email}")
+        if st.button("Log Out"):
+            st.session_state.user = None
+            st.rerun()
+    else:
+        st.info(f"Guest Usage: {st.session_state.usage_count}/3")
+        with st.form("login_form"):
+            email = st.text_input("Email")
+            password = st.text_input("Password", type="password")
+            if st.form_submit_button("Login Directly"):
+                try:
+                    res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+                    st.session_state.user = res.user
+                    st.rerun()
+                except:
+                    st.error("Login failed. Check credentials.")
 
-def save_to_db(prompt_in, prompt_out):
-    if st.session_state.user:
-        data = {
-            "user_id": st.session_state.user.id,
-            "input_text": prompt_in,
-            "output_text": prompt_out
-        }
-        supabase.table("user_prompts").insert(data).execute()
-
-# --- 5. UI & NAVIGATION ---
-# (Keeping your beautiful gradient CSS from before...)
-st.markdown("""<style>...</style>""", unsafe_allow_html=True)
-
+# --- 5. MAIN NAVIGATION ---
 menu_item = sac.tabs([
-    sac.TabsItem(label='Generator', icon='magic'),
-    sac.TabsItem(label='History', icon='clock-history'),
-    sac.TabsItem(label='Account', icon='person-circle'),
+    sac.TabsItem(label='New Chat', icon='chat-square-dots-fill'),
+    sac.TabsItem(label='History', icon='clock-fill'),
+    sac.TabsItem(label='Account', icon='person-bounding-box'),
 ], align='center', variant='toggle', color='cyan')
 
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
-# --- 6. LOGIC GATING ---
-if menu_item == 'Generator':
-    # CHECK IF USER IS BLOCKED
+# --- 6. TAB LOGIC ---
+if menu_item == 'New Chat':
     if not st.session_state.user and st.session_state.usage_count >= 3:
-        st.warning("🚀 You've reached the Guest limit! Please Login to continue generating and save your history.")
-        
-        tab1, tab2 = st.tabs(["Login", "Sign Up"])
-        with tab1:
-            e = st.text_input("Email", key="log_e")
-            p = st.text_input("Password", type="password", key="log_p")
-            if st.button("Login"): login(e, p)
-        with tab2:
-            e_s = st.text_input("Email", key="sig_e")
-            p_s = st.text_input("Password", type="password", key="sig_p")
-            if st.button("Create Account"): sign_up(e_s, p_s)
-    
+        st.error("🚫 Guest limit reached! Please use the sidebar to login.")
     else:
-        # NORMAL GENERATOR CODE
-        user_input = st.text_area("What are we creating today?")
-        if st.button("GENERATE"):
-            # 1. Generate AI Content
-            model = genai.GenerativeModel('gemini-2.5-flash')
-            response = model.generate_content(user_input)
-            
-            # 2. Update logic
-            st.session_state.usage_count += 1
-            if st.session_state.user:
-                save_to_db(user_input, response.text)
-            
-            st.code(response.text)
+        if st.session_state.last_result:
+            st.code(st.session_state.last_result)
+            c1, c2 = st.columns(2)
+            if c1.button("🆕 Clear & New"): 
+                st.session_state.last_result = ""; st.rerun()
+            c2.download_button("📥 Download", st.session_state.last_result, "prompt.txt")
+        else:
+            u_input = st.text_area("What should the AI write?", height=150)
+            if st.button("GENERATE MASTERPIECE"):
+                model = genai.GenerativeModel('gemini-2.5-flash')
+                resp = model.generate_content(u_input)
+                st.session_state.last_result = resp.text
+                st.session_state.usage_count += 1
+                if st.session_state.user:
+                    supabase.table("user_prompts").insert({
+                        "user_id": st.session_state.user.id,
+                        "input_text": u_input, "output_text": resp.text
+                    }).execute()
+                st.rerun()
 
 elif menu_item == 'History':
-    fetch_history() # Refresh history from DB
-    for item in st.session_state.history:
-        with st.expander(item['created_at']):
-            st.write(item['output_text'])
+    if not st.session_state.user:
+        st.warning("Please login via the sidebar to view your permanent history.")
+    else:
+        res = supabase.table("user_prompts").select("*").eq("user_id", st.session_state.user.id).execute()
+        for item in res.data:
+            with st.expander(f"Prompt: {item['input_text'][:30]}..."):
+                st.code(item['output_text'])
+
+elif menu_item == 'Account':
+    st.subheader("User Statistics")
+    st.write(f"Total Prompts Generated: {st.session_state.usage_count}")
+    if st.button("🗑️ Reset Local Counter"):
+        st.session_state.usage_count = 0
+        st.rerun()
 
 st.markdown('</div>', unsafe_allow_html=True)
-

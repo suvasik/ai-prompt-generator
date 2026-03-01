@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import streamlit_antd_components as sac
 from supabase import create_client, Client
-from streamlit_extras.stylable_container import stylable_container # Optional but nice
+import streamlit.components.v1 as components
 
 # --- 1. CONFIG & DB SETUP ---
 st.set_page_config(page_title="Prompt Studio Pro", page_icon="🪄", layout="wide")
@@ -27,7 +27,6 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.1); 
         box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
     }
-    /* Glowing Button Styles */
     div.stButton > button { 
         background: linear-gradient(45deg, #00f2fe, #4facfe) !important;
         color: #050b1a !important; font-weight: 800 !important; 
@@ -36,6 +35,7 @@ st.markdown("""
     }
     div.stButton > button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 242, 254, 0.4); }
     h1, h2, h3, p, span, label { color: white !important; }
+    .stTextArea textarea { background-color: rgba(0,0,0,0.2) !important; color: #00f2fe !important; border-radius: 12px !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -90,19 +90,26 @@ if tab == 'Generator':
             st.markdown("### ✨ AI Result")
             st.code(st.session_state.last_result, language="markdown")
             
-            # --- JAVASCRIPT COPY COMPONENT ---
-            # This replaces the broken st.copy_to_clipboard
-            copy_text = st.session_state.last_result.replace("'", "\\'").replace("\n", "\\n")
-            copy_js = f"""
-                <button onclick="navigator.clipboard.writeText('{copy_text}'); alert('Copied to clipboard!')" 
-                style="width: 100%; height: 45px; background: #00f2fe; border: none; border-radius: 12px; color: #050b1a; font-weight: bold; cursor: pointer; margin-bottom: 10px;">
-                📋 Copy Result
+            # --- JAVASCRIPT COPY BUTTON (No external modules) ---
+            # Escaping characters for JS string safety
+            safe_text = st.session_state.last_result.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "")
+            copy_button_html = f"""
+                <button onclick="copyToClipboard()" style="width: 100%; height: 45px; background: linear-gradient(45deg, #00f2fe, #4facfe); border: none; border-radius: 12px; color: #050b1a; font-weight: bold; cursor: pointer; font-family: sans-serif;">
+                📋 Copy Masterpiece
                 </button>
+                <script>
+                function copyToClipboard() {{
+                    const text = `{safe_text}`;
+                    navigator.clipboard.writeText(text).then(() => {{
+                        alert('Copied to clipboard!');
+                    }});
+                }}
+                </script>
             """
             
             col1, col2 = st.columns(2)
             with col1:
-                st.components.v1.html(copy_js, height=60)
+                components.html(copy_button_html, height=70)
             with col2:
                 if st.button("🆕 New Chat"):
                     st.session_state.last_result = ""; st.rerun()
@@ -140,11 +147,18 @@ elif tab == 'My Library':
             else:
                 for item in data.data:
                     with st.expander(f"📦 {item['input_text'][:50]}..."):
+                        st.write(f"**Request:** {item['input_text']}")
                         st.code(item['output_text'])
-                        # Copy button inside expander
-                        lib_copy_text = item['output_text'].replace("'", "\\'").replace("\n", "\\n")
-                        lib_js = f"""<button onclick="navigator.clipboard.writeText('{lib_copy_text}');" style="background:#00f2fe; border:none; border-radius:5px; padding:5px 10px; cursor:pointer;">📋 Copy</button>"""
-                        st.components.v1.html(lib_js, height=40)
+                        
+                        # Copy inside expander
+                        lib_safe_text = item['output_text'].replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "")
+                        lib_copy_html = f"""
+                            <button onclick="navigator.clipboard.writeText(`{lib_safe_text}`).then(() => alert('Copied!'))" 
+                            style="background:#00f2fe; border:none; border-radius:8px; padding:8px 15px; cursor:pointer; font-weight:bold;">
+                            📋 Copy
+                            </button>
+                        """
+                        components.html(lib_copy_html, height=50)
         except Exception as e:
             st.error(f"Error: {e}")
 

@@ -44,14 +44,42 @@ if "user" not in st.session_state: st.session_state.user = None
 if "access_token" not in st.session_state: st.session_state.access_token = None
 if "usage_count" not in st.session_state: st.session_state.usage_count = 0
 if "last_result" not in st.session_state: st.session_state.last_result = ""
+if "reset_mode" not in st.session_state: st.session_state.reset_mode = False
 
-# --- 4. SIDEBAR AUTH ---
+# --- 4. SIDEBAR AUTH (Including Password Reset) ---
 with st.sidebar:
     st.title("👤 Account")
+    
     if st.session_state.user:
         st.success(f"Logged in: {st.session_state.user.email}")
+        
+        # Check if user arrived via recovery link
+        if st.session_state.reset_mode:
+            st.warning("⚠️ Set your new password below")
+            new_pw = st.text_input("New Password", type="password")
+            if st.button("Update Password"):
+                try:
+                    supabase.auth.update_user({"password": new_pw})
+                    st.success("Updated! Please log in again.")
+                    st.session_state.user = None
+                    st.session_state.reset_mode = False
+                    st.rerun()
+                except Exception as e: st.error(f"Error: {e}")
+        
         if st.button("Logout"):
             st.session_state.user = None; st.session_state.access_token = None; st.rerun()
+            
+    elif st.session_state.reset_mode:
+        st.subheader("🔑 Reset Password")
+        email_reset = st.text_input("Email Address")
+        if st.button("Send Reset Link"):
+            try:
+                supabase.auth.reset_password_for_email(email_reset)
+                st.success("Check your email for the link!")
+            except Exception as e: st.error(f"Error: {e}")
+        if st.button("Back to Login"):
+            st.session_state.reset_mode = False; st.rerun()
+
     else:
         st.write(f"Guest Usage: {st.session_state.usage_count}/3")
         st.progress(st.session_state.usage_count / 3)
@@ -66,6 +94,9 @@ with st.sidebar:
                 st.session_state.access_token = res.session.access_token
                 st.rerun()
             except: st.error("Login failed.")
+            
+        if mode == "Login" and st.button("❓ Forgot Password?", use_container_width=False):
+            st.session_state.reset_mode = True; st.rerun()
         
         if mode == "Sign Up" and st.button("Create Account"):
             try:
@@ -90,8 +121,7 @@ if tab == 'Generator':
             st.markdown("### ✨ AI Result")
             st.code(st.session_state.last_result, language="markdown")
             
-            # --- JAVASCRIPT COPY BUTTON (No external modules) ---
-            # Escaping characters for JS string safety
+            # --- JAVASCRIPT COPY BUTTON ---
             safe_text = st.session_state.last_result.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "")
             copy_button_html = f"""
                 <button onclick="copyToClipboard()" style="width: 100%; height: 45px; background: linear-gradient(45deg, #00f2fe, #4facfe); border: none; border-radius: 12px; color: #050b1a; font-weight: bold; cursor: pointer; font-family: sans-serif;">
@@ -100,23 +130,19 @@ if tab == 'Generator':
                 <script>
                 function copyToClipboard() {{
                     const text = `{safe_text}`;
-                    navigator.clipboard.writeText(text).then(() => {{
-                        alert('Copied to clipboard!');
-                    }});
+                    navigator.clipboard.writeText(text).then(() => {{ alert('Copied to clipboard!'); }});
                 }}
                 </script>
             """
-            
             col1, col2 = st.columns(2)
-            with col1:
-                components.html(copy_button_html, height=70)
+            with col1: components.html(copy_button_html, height=70)
             with col2:
                 if st.button("🆕 New Chat"):
                     st.session_state.last_result = ""; st.rerun()
         else:
             st.title("🚀 Prompt Studio")
             prompt_input = st.text_area("What are we creating?", height=150)
-            if st.button("GENERATE PROMPT"):
+            if st.button("GENERATE MASTERPIECE"):
                 if prompt_input:
                     with st.spinner("Thinking..."):
                         model = genai.GenerativeModel('gemini-2.5-flash')
@@ -150,7 +176,6 @@ elif tab == 'My Library':
                         st.write(f"**Request:** {item['input_text']}")
                         st.code(item['output_text'])
                         
-                        # Copy inside expander
                         lib_safe_text = item['output_text'].replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "")
                         lib_copy_html = f"""
                             <button onclick="navigator.clipboard.writeText(`{lib_safe_text}`).then(() => alert('Copied!'))" 
@@ -163,4 +188,3 @@ elif tab == 'My Library':
             st.error(f"Error: {e}")
 
 st.markdown('</div>', unsafe_allow_html=True)
-

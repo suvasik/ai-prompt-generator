@@ -2,23 +2,19 @@ import streamlit as st
 import google.generativeai as genai
 import streamlit_antd_components as sac
 from supabase import create_client, Client
-from supabase.lib.client_options import ClientOptions # Required for fixing the AttributeError
 import streamlit.components.v1 as components
 
 # --- 1. CONFIG & DB SETUP ---
 st.set_page_config(page_title="Prompt Studio Pro", page_icon="🪄", layout="wide")
 
+# Removed @st.cache_resource to ensure a clean client every time
 def get_supabase():
-    try:
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_KEY"]
-        # Fix: Using ClientOptions object instead of a dictionary
-        opts = ClientOptions(postgrest_client_timeout=30) 
-        return create_client(url, key, options=opts)
-    except Exception as e:
-        st.error(f"Supabase Connection Error: {e}")
-        return None
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    # Direct initialization is the most compatible across all library versions
+    return create_client(url, key)
 
+# Initialize clients
 supabase = get_supabase()
 genai.configure(api_key=st.secrets["GEMINI_KEY"])
 
@@ -55,12 +51,6 @@ if "reset_mode" not in st.session_state: st.session_state.reset_mode = False
 with st.sidebar:
     st.title("👤 Account")
     
-    # Status Indicator
-    if supabase:
-        st.caption("🟢 Database Connected")
-    else:
-        st.caption("🔴 Database Offline")
-
     if st.session_state.user:
         st.success(f"Logged in: {st.session_state.user.email}")
         if st.session_state.reset_mode:
@@ -69,7 +59,7 @@ with st.sidebar:
             if st.button("Update Password"):
                 try:
                     supabase.auth.update_user({"password": new_pw})
-                    st.success("Updated! Please log in again.")
+                    st.success("Updated! Log in again.")
                     st.session_state.user = None
                     st.session_state.reset_mode = False
                     st.rerun()
@@ -98,11 +88,12 @@ with st.sidebar:
         
         if mode == "Login" and st.button("Sign In"):
             try:
+                # Direct call to the fresh client
                 res = supabase.auth.sign_in_with_password({"email": email, "password": pw})
                 st.session_state.user = res.user
                 st.session_state.access_token = res.session.access_token
                 st.rerun()
-            except: st.error("Login failed. Check credentials.")
+            except Exception as e: st.error(f"Login failed: {e}")
             
         if mode == "Login" and st.button("❓ Forgot Password?"):
             st.session_state.reset_mode = True; st.rerun()
@@ -130,10 +121,10 @@ if tab == 'Generator':
             st.markdown("### ✨ AI Result")
             st.code(st.session_state.last_result, language="markdown")
             
-            # --- JAVASCRIPT COPY BUTTON ---
+            # Escape text for JS
             safe_text = st.session_state.last_result.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "")
             copy_button_html = f"""
-                <button onclick="copyToClipboard()" style="width: 100%; height: 45px; background: linear-gradient(45deg, #00f2fe, #4facfe); border: none; border-radius: 12px; color: #050b1a; font-weight: bold; cursor: pointer;">
+                <button onclick="copyToClipboard()" style="width: 100%; height: 45px; background: linear-gradient(45deg, #00f2fe, #4facfe); border: none; border-radius: 12px; color: #050b1a; font-weight: bold; cursor: pointer; width:100%;">
                 📋 Copy Result
                 </button>
                 <script>
@@ -153,7 +144,7 @@ if tab == 'Generator':
             prompt_input = st.text_area("What are we creating?", height=150)
             if st.button("GENERATE MASTERPIECE"):
                 if prompt_input:
-                    with st.spinner("Processing..."):
+                    with st.spinner("Thinking..."):
                         try:
                             model = genai.GenerativeModel('gemini-2.5-flash')
                             response = model.generate_content(prompt_input)
@@ -168,7 +159,7 @@ if tab == 'Generator':
                                 }).execute()
                             st.rerun()
                         except Exception as e:
-                            st.error(f"API Error: {e}")
+                            st.error(f"Error: {e}")
 
 elif tab == 'My Library':
     st.title("📚 Library")

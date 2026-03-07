@@ -116,7 +116,7 @@ if tab == 'Generator':
         else:
             st.title("🚀 Prompt Studio")
             prompt_input = st.text_area("What are we creating?", height=150)
-            if st.button("GENERATE MASTERPIECE"):
+            if st.button("GENERATE PROMPT"):
                 if prompt_input:
                     with st.spinner("Thinking..."):
                         model = genai.GenerativeModel('gemini-2.5-flash')
@@ -163,3 +163,4 @@ elif tab == 'My Library':
             st.error(f"Error: {e}")
 
 st.markdown('</div>', unsafe_allow_html=True)
+

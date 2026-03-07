@@ -86,7 +86,7 @@ with st.sidebar:
         email = st.text_input("Email").strip()
         pw = st.text_input("Password", type="password").strip()
         
-        if mode == "Login" and st.button("Sign In"):
+        if mode == "Login" and st.button("Log In"):
             try:
                 # Direct call to the fresh client
                 res = supabase.auth.sign_in_with_password({"email": email, "password": pw})
@@ -142,9 +142,9 @@ if tab == 'Generator':
         else:
             st.title("🚀 Prompt Studio")
             prompt_input = st.text_area("What are we creating?", height=150)
-            if st.button("GENERATE MASTERPIECE"):
+            if st.button("GENERATE PROMPT"):
                 if prompt_input:
-                    with st.spinner("Thinking..."):
+                    with st.spinner("GENERATING PROMPT...."):
                         try:
                             model = genai.GenerativeModel('gemini-2.5-flash')
                             response = model.generate_content(prompt_input)
@@ -187,3 +187,4 @@ elif tab == 'My Library':
             st.error(f"History load failed: {e}")
 
 st.markdown('</div>', unsafe_allow_html=True)
+

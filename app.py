@@ -2,17 +2,22 @@ import streamlit as st
 import google.generativeai as genai
 import streamlit_antd_components as sac
 from supabase import create_client, Client
+from supabase.lib.client_options import ClientOptions # Required for fixing the AttributeError
 import streamlit.components.v1 as components
-from httpx import Timeout
 
 # --- 1. CONFIG & DB SETUP ---
 st.set_page_config(page_title="Prompt Studio Pro", page_icon="🪄", layout="wide")
 
 def get_supabase():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    # We increase the timeout to 30 seconds to prevent "Read Operation Timed Out"
-    return create_client(url, key, options={"postgrest_client_timeout": 30})
+    try:
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_KEY"]
+        # Fix: Using ClientOptions object instead of a dictionary
+        opts = ClientOptions(postgrest_client_timeout=30) 
+        return create_client(url, key, options=opts)
+    except Exception as e:
+        st.error(f"Supabase Connection Error: {e}")
+        return None
 
 supabase = get_supabase()
 genai.configure(api_key=st.secrets["GEMINI_KEY"])
@@ -33,9 +38,7 @@ st.markdown("""
         background: linear-gradient(45deg, #00f2fe, #4facfe) !important;
         color: #050b1a !important; font-weight: 800 !important; 
         border-radius: 12px !important; border: none !important;
-        transition: 0.3s all ease !important;
     }
-    div.stButton > button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 242, 254, 0.4); }
     h1, h2, h3, p, span, label { color: white !important; }
     .stTextArea textarea { background-color: rgba(0,0,0,0.2) !important; color: #00f2fe !important; border-radius: 12px !important; }
     </style>
@@ -52,10 +55,16 @@ if "reset_mode" not in st.session_state: st.session_state.reset_mode = False
 with st.sidebar:
     st.title("👤 Account")
     
+    # Status Indicator
+    if supabase:
+        st.caption("🟢 Database Connected")
+    else:
+        st.caption("🔴 Database Offline")
+
     if st.session_state.user:
         st.success(f"Logged in: {st.session_state.user.email}")
         if st.session_state.reset_mode:
-            st.warning("⚠️ Set your new password")
+            st.warning("⚠️ Set new password")
             new_pw = st.text_input("New Password", type="password")
             if st.button("Update Password"):
                 try:
@@ -93,7 +102,7 @@ with st.sidebar:
                 st.session_state.user = res.user
                 st.session_state.access_token = res.session.access_token
                 st.rerun()
-            except: st.error("Login failed. Check internet or credentials.")
+            except: st.error("Login failed. Check credentials.")
             
         if mode == "Login" and st.button("❓ Forgot Password?"):
             st.session_state.reset_mode = True; st.rerun()
@@ -121,6 +130,7 @@ if tab == 'Generator':
             st.markdown("### ✨ AI Result")
             st.code(st.session_state.last_result, language="markdown")
             
+            # --- JAVASCRIPT COPY BUTTON ---
             safe_text = st.session_state.last_result.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "")
             copy_button_html = f"""
                 <button onclick="copyToClipboard()" style="width: 100%; height: 45px; background: linear-gradient(45deg, #00f2fe, #4facfe); border: none; border-radius: 12px; color: #050b1a; font-weight: bold; cursor: pointer;">
@@ -141,7 +151,7 @@ if tab == 'Generator':
         else:
             st.title("🚀 Prompt Studio")
             prompt_input = st.text_area("What are we creating?", height=150)
-            if st.button("GENERATE"):
+            if st.button("GENERATE MASTERPIECE"):
                 if prompt_input:
                     with st.spinner("Processing..."):
                         try:
@@ -158,7 +168,7 @@ if tab == 'Generator':
                                 }).execute()
                             st.rerun()
                         except Exception as e:
-                            st.error(f"Operation timed out or failed: {e}. Please try again.")
+                            st.error(f"API Error: {e}")
 
 elif tab == 'My Library':
     st.title("📚 Library")
@@ -167,7 +177,6 @@ elif tab == 'My Library':
     else:
         try:
             supabase.postgrest.auth(st.session_state.access_token)
-            # Order by newest first
             data = supabase.table("user_prompts").select("*").order('created_at', desc=True).execute()
             if not data.data:
                 st.write("Your library is empty.")
@@ -184,6 +193,6 @@ elif tab == 'My Library':
                         """
                         components.html(lib_copy_html, height=50)
         except Exception as e:
-            st.error("The request timed out. Please refresh the page.")
+            st.error(f"History load failed: {e}")
 
 st.markdown('</div>', unsafe_allow_html=True)

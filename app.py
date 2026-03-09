@@ -1,124 +1,153 @@
 import streamlit as st
 import google.generativeai as genai
 import streamlit_antd_components as sac
-from supabase import create_client
+from supabase import create_client, Client
 import streamlit.components.v1 as components
 
 # --- 1. CONFIG & DB SETUP ---
 st.set_page_config(page_title="Prompt Studio Pro", page_icon="🪄", layout="wide")
 
+# Removed @st.cache_resource to ensure a clean client every time
 def get_supabase():
-    try:
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_KEY"]
-        return create_client(url, key)
-    except:
-        return None
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    # Direct initialization is the most compatible across all library versions
+    return create_client(url, key)
 
+# Initialize clients
 supabase = get_supabase()
 genai.configure(api_key=st.secrets["GEMINI_KEY"])
 
-# --- 2. ADVANCED UI & CUSTOM CSS ---
+# --- 2. THE UI & CUSTOM CSS ---
 st.markdown("""
     <style>
-    .stApp { background: radial-gradient(circle at top right, #1e293b, #0f172a); color: #f8fafc; }
+    .stApp { background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); background-attachment: fixed; }
     .main-box { 
-        background: rgba(255, 255, 255, 0.03); 
-        backdrop-filter: blur(12px); 
-        border-radius: 24px; 
+        background: rgba(255, 255, 255, 0.07); 
+        backdrop-filter: blur(25px); 
+        border-radius: 25px; 
         padding: 40px; 
         border: 1px solid rgba(255, 255, 255, 0.1); 
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
     }
-    .stTextArea textarea { background: rgba(15, 23, 42, 0.6) !important; color: #22d3ee !important; border-radius: 16px !important; }
     div.stButton > button { 
-        background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%) !important;
-        color: white !important; font-weight: 700 !important; border-radius: 12px !important; border: none !important;
+        background: linear-gradient(45deg, #00f2fe, #4facfe) !important;
+        color: #050b1a !important; font-weight: 800 !important; 
+        border-radius: 12px !important; border: none !important;
     }
-    h1, h2, h3 { background: linear-gradient(to right, #22d3ee, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1, h2, h3, p, span, label { color: white !important; }
+    .stTextArea textarea { background-color: rgba(0,0,0,0.2) !important; color: #00f2fe !important; border-radius: 12px !important; }
     </style>
 """, unsafe_allow_html=True)
 
 # --- 3. SESSION STATE ---
-for key in ["user", "access_token", "usage_count", "last_result"]:
-    if key not in st.session_state:
-        st.session_state[key] = 0 if key == "usage_count" else None
+if "user" not in st.session_state: st.session_state.user = None
+if "access_token" not in st.session_state: st.session_state.access_token = None
+if "usage_count" not in st.session_state: st.session_state.usage_count = 0
+if "last_result" not in st.session_state: st.session_state.last_result = ""
+if "reset_mode" not in st.session_state: st.session_state.reset_mode = False
 
 # --- 4. SIDEBAR AUTH ---
 with st.sidebar:
-    st.title("🛡️ Access Portal")
+    st.title("👤 Account")
+    
     if st.session_state.user:
-        st.success(f"User: {st.session_state.user.email}")
+        st.success(f"Logged in: {st.session_state.user.email}")
+        if st.session_state.reset_mode:
+            st.warning("⚠️ Set new password")
+            new_pw = st.text_input("New Password", type="password")
+            if st.button("Update Password"):
+                try:
+                    supabase.auth.update_user({"password": new_pw})
+                    st.success("Updated! Log in again.")
+                    st.session_state.user = None
+                    st.session_state.reset_mode = False
+                    st.rerun()
+                except Exception as e: st.error(f"Error: {e}")
+        
         if st.button("Logout"):
-            st.session_state.user = None; st.rerun()
+            st.session_state.user = None; st.session_state.access_token = None; st.rerun()
+            
+    elif st.session_state.reset_mode:
+        st.subheader("🔑 Reset Password")
+        email_reset = st.text_input("Email Address")
+        if st.button("Send Reset Link"):
+            try:
+                supabase.auth.reset_password_for_email(email_reset)
+                st.success("Link sent! Check your inbox.")
+            except Exception as e: st.error(f"Error: {e}")
+        if st.button("Back to Login"):
+            st.session_state.reset_mode = False; st.rerun()
+
     else:
-        st.write(f"Credits: {st.session_state.usage_count}/3")
-        # Standard Streamlit radio is safer for Auth toggles
-        mode = st.radio("Account", ["Login", "Register"], horizontal=True)
+        st.write(f"Guest Usage: {st.session_state.usage_count}/3")
+        st.progress(st.session_state.usage_count / 3)
+        mode = st.radio("Mode", ["Login", "Sign Up"], horizontal=True)
         email = st.text_input("Email").strip()
         pw = st.text_input("Password", type="password").strip()
         
-        if mode == "Login" and st.button("Enter Studio"):
+        if mode == "Login" and st.button("Sign In"):
             try:
+                # Direct call to the fresh client
                 res = supabase.auth.sign_in_with_password({"email": email, "password": pw})
                 st.session_state.user = res.user
                 st.session_state.access_token = res.session.access_token
                 st.rerun()
-            except: st.error("Access Denied.")
+            except Exception as e: st.error(f"Login failed: {e}")
+            
+        if mode == "Login" and st.button("❓ Forgot Password?"):
+            st.session_state.reset_mode = True; st.rerun()
         
-        if mode == "Register" and st.button("Create Account"):
+        if mode == "Sign Up" and st.button("Create Account"):
             try:
                 supabase.auth.sign_up({"email": email, "password": pw})
-                st.success("Account Created! Please Login.")
-            except: st.error("Sign up failed.")
+                st.success("Success! Now Login.")
+            except Exception as e: st.error(f"Error: {e}")
 
-# --- 5. NAVIGATION (Fixed Compatibility) ---
-# We use a try-except block here to handle SAC version differences
-try:
-    tab = sac.tabs([
-        sac.TabsItem(label='Architect', icon='cpu'),
-        sac.TabsItem(label='Vault', icon='safe2'),
-    ], color='cyan', index=0)
-except:
-    # Fallback to standard Streamlit tabs if SAC fails
-    tab_list = ["Architect", "Vault"]
-    st_tabs = st.tabs(tab_list)
-    tab = tab_list[0] # Default for simpler logic
+# --- 5. NAVIGATION ---
+tab = sac.tabs([
+    sac.TabsItem(label='Generator', icon='magic'),
+    sac.TabsItem(label='My Library', icon='folder2-open'),
+], align='center', variant='toggle', color='cyan')
 
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
-# --- 6. ARCHITECT PAGE ---
-if tab == 'Architect' or (isinstance(tab, str) and tab == 'Architect'):
+# --- 6. PAGE ROUTING ---
+if tab == 'Generator':
     if not st.session_state.user and st.session_state.usage_count >= 3:
-        st.warning("🚧 Locked: Please login for more credits.")
+        st.error("💡 Free limit reached. Please login!")
     else:
         if st.session_state.last_result:
-            st.markdown("### 🔮 Optimized Prompt")
+            st.markdown("### ✨ AI Result")
             st.code(st.session_state.last_result, language="markdown")
             
+            # Escape text for JS
             safe_text = st.session_state.last_result.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "")
-            copy_html = f"""
-                <button onclick="navigator.clipboard.writeText(`{safe_text}`).then(() => alert('Copied!'))" 
-                style="width: 100%; height: 50px; background: #22d3ee; border: none; border-radius: 12px; color: #0f172a; font-weight: 800; cursor: pointer;">
-                📋 COPY TO CLIPBOARD
+            copy_button_html = f"""
+                <button onclick="copyToClipboard()" style="width: 100%; height: 45px; background: linear-gradient(45deg, #00f2fe, #4facfe); border: none; border-radius: 12px; color: #050b1a; font-weight: bold; cursor: pointer; width:100%;">
+                📋 Copy Result
                 </button>
+                <script>
+                function copyToClipboard() {{
+                    const text = `{safe_text}`;
+                    navigator.clipboard.writeText(text).then(() => {{ alert('Copied!'); }});
+                }}
+                </script>
             """
-            components.html(copy_html, height=60)
-            if st.button("🆕 New Prompt"):
-                st.session_state.last_result = ""; st.rerun()
+            col1, col2 = st.columns(2)
+            with col1: components.html(copy_button_html, height=70)
+            with col2:
+                if st.button("🆕 New Chat"):
+                    st.session_state.last_result = ""; st.rerun()
         else:
-            st.title("🪄 Prompt Architect")
-            prompt_input = st.text_area("Input your base concept...", height=200)
-            
-            if st.button("CONSTRUCT MASTER PROMPT"):
+            st.title("🚀 Prompt Studio")
+            prompt_input = st.text_area("What are we creating?", height=150)
+            if st.button("GENERATE MASTERPIECE"):
                 if prompt_input:
-                    with st.spinner("Engineering..."):
+                    with st.spinner("Thinking..."):
                         try:
                             model = genai.GenerativeModel('gemini-2.5-flash')
-                            # Choice B: Structured Prompt Engineering Logic
-                            sys_logic = "Act as a Master Prompt Engineer. Rewrite this idea into a professional prompt with Persona, Task, Context, and Constraints: "
-                            response = model.generate_content(sys_logic + prompt_input)
-                            
+                            response = model.generate_content(prompt_input)
                             st.session_state.last_result = response.text
                             st.session_state.usage_count += 1
                             
@@ -129,23 +158,32 @@ if tab == 'Architect' or (isinstance(tab, str) and tab == 'Architect'):
                                     "input_text": prompt_input, "output_text": response.text
                                 }).execute()
                             st.rerun()
-                        except Exception as e: st.error(f"AI Link Error: {e}")
+                        except Exception as e:
+                            st.error(f"Error: {e}")
 
-# --- 7. VAULT PAGE ---
-elif tab == 'Vault' or (isinstance(tab, str) and tab == 'Vault'):
-    st.title("🗄️ Secure Vault")
+elif tab == 'My Library':
+    st.title("📚 Library")
     if not st.session_state.user:
-        st.info("🔐 Please log in to view your history.")
+        st.info("Log in to see your collection.")
     else:
         try:
             supabase.postgrest.auth(st.session_state.access_token)
             data = supabase.table("user_prompts").select("*").order('created_at', desc=True).execute()
             if not data.data:
-                st.write("Vault is empty.")
+                st.write("Your library is empty.")
             else:
                 for item in data.data:
-                    with st.expander(f"📁 {item['input_text'][:50]}..."):
+                    with st.expander(f"📦 {item['input_text'][:50]}..."):
                         st.code(item['output_text'])
-        except Exception as e: st.error(f"Vault error: {e}")
+                        lib_safe_text = item['output_text'].replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "")
+                        lib_copy_html = f"""
+                            <button onclick="navigator.clipboard.writeText(`{lib_safe_text}`).then(() => alert('Copied!'))" 
+                            style="background:#00f2fe; border:none; border-radius:8px; padding:8px 15px; cursor:pointer; font-weight:bold;">
+                            📋 Copy
+                            </button>
+                        """
+                        components.html(lib_copy_html, height=50)
+        except Exception as e:
+            st.error(f"History load failed: {e}")
 
 st.markdown('</div>', unsafe_allow_html=True)

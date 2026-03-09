@@ -7,14 +7,12 @@ import streamlit.components.v1 as components
 # --- 1. CONFIG & DB SETUP ---
 st.set_page_config(page_title="Prompt Studio Pro", page_icon="🪄", layout="wide")
 
-# Helper to initialize Supabase
 def get_supabase():
     try:
         url = st.secrets["SUPABASE_URL"]
         key = st.secrets["SUPABASE_KEY"]
         return create_client(url, key)
-    except Exception as e:
-        st.error("Missing Supabase Secrets")
+    except:
         return None
 
 supabase = get_supabase()
@@ -23,10 +21,7 @@ genai.configure(api_key=st.secrets["GEMINI_KEY"])
 # --- 2. ADVANCED UI & CUSTOM CSS ---
 st.markdown("""
     <style>
-    .stApp { 
-        background: radial-gradient(circle at top right, #1e293b, #0f172a);
-        color: #f8fafc;
-    }
+    .stApp { background: radial-gradient(circle at top right, #1e293b, #0f172a); color: #f8fafc; }
     .main-box { 
         background: rgba(255, 255, 255, 0.03); 
         backdrop-filter: blur(12px); 
@@ -35,55 +30,31 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.1); 
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     }
-    .stTextArea textarea { 
-        background: rgba(15, 23, 42, 0.6) !important; 
-        color: #22d3ee !important; 
-        border: 1px solid rgba(34, 211, 238, 0.2) !important;
-        border-radius: 16px !important;
-    }
+    .stTextArea textarea { background: rgba(15, 23, 42, 0.6) !important; color: #22d3ee !important; border-radius: 16px !important; }
     div.stButton > button { 
         background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%) !important;
-        color: white !important; font-weight: 700 !important; 
-        border-radius: 12px !important; border: none !important;
-        transition: 0.3s all ease !important;
+        color: white !important; font-weight: 700 !important; border-radius: 12px !important; border: none !important;
     }
-    div.stButton > button:hover { transform: translateY(-2px); filter: brightness(1.1); }
-    h1, h2, h3 { 
-        background: linear-gradient(to right, #22d3ee, #818cf8);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
+    h1, h2, h3 { background: linear-gradient(to right, #22d3ee, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     </style>
 """, unsafe_allow_html=True)
 
 # --- 3. SESSION STATE ---
-if "user" not in st.session_state: st.session_state.user = None
-if "access_token" not in st.session_state: st.session_state.access_token = None
-if "usage_count" not in st.session_state: st.session_state.usage_count = 0
-if "last_result" not in st.session_state: st.session_state.last_result = ""
-if "reset_mode" not in st.session_state: st.session_state.reset_mode = False
+for key in ["user", "access_token", "usage_count", "last_result"]:
+    if key not in st.session_state:
+        st.session_state[key] = 0 if key == "usage_count" else None
 
-# --- 4. SIDEBAR AUTH (Fixed SAC Logic) ---
+# --- 4. SIDEBAR AUTH ---
 with st.sidebar:
-    st.markdown("### 🛡️ Access Portal")
-    
+    st.title("🛡️ Access Portal")
     if st.session_state.user:
-        st.success(f"Verified: {st.session_state.user.email}")
-        if st.button("Secure Logout"):
-            st.session_state.user = None; st.session_state.access_token = None; st.rerun()
+        st.success(f"User: {st.session_state.user.email}")
+        if st.button("Logout"):
+            st.session_state.user = None; st.rerun()
     else:
         st.write(f"Credits: {st.session_state.usage_count}/3")
-        st.progress(st.session_state.usage_count / 3)
-        
-        # Using a safer version of SAC Segmented to avoid TypeError
-        try:
-            mode = sac.segmented(
-                items=[sac.SegmentedItem('Login'), sac.SegmentedItem('Register')],
-                color='cyan', size='sm', align='center'
-            )
-        except:
-            mode = st.radio("Access Mode", ["Login", "Register"], horizontal=True)
-
+        # Standard Streamlit radio is safer for Auth toggles
+        mode = st.radio("Account", ["Login", "Register"], horizontal=True)
         email = st.text_input("Email").strip()
         pw = st.text_input("Password", type="password").strip()
         
@@ -98,44 +69,43 @@ with st.sidebar:
         if mode == "Register" and st.button("Create Account"):
             try:
                 supabase.auth.sign_up({"email": email, "password": pw})
-                st.success("Identity Created. Please Login.")
-            except: st.error("Registration failed.")
+                st.success("Account Created! Please Login.")
+            except: st.error("Sign up failed.")
 
-# --- 5. NAVIGATION ---
-tab = sac.tabs([
-    sac.TabsItem(label='Architect', icon='cpu'),
-    sac.TabsItem(label='Vault', icon='safe2'),
-], align='center', variant='toggle', color='cyan')
+# --- 5. NAVIGATION (Fixed Compatibility) ---
+# We use a try-except block here to handle SAC version differences
+try:
+    tab = sac.tabs([
+        sac.TabsItem(label='Architect', icon='cpu'),
+        sac.TabsItem(label='Vault', icon='safe2'),
+    ], color='cyan', index=0)
+except:
+    # Fallback to standard Streamlit tabs if SAC fails
+    tab_list = ["Architect", "Vault"]
+    st_tabs = st.tabs(tab_list)
+    tab = tab_list[0] # Default for simpler logic
 
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
-# --- 6. PAGE ROUTING ---
-if tab == 'Architect':
+# --- 6. ARCHITECT PAGE ---
+if tab == 'Architect' or (isinstance(tab, str) and tab == 'Architect'):
     if not st.session_state.user and st.session_state.usage_count >= 3:
-        st.warning("🚧 Locked: Authenticate for more generations.")
+        st.warning("🚧 Locked: Please login for more credits.")
     else:
         if st.session_state.last_result:
             st.markdown("### 🔮 Optimized Prompt")
             st.code(st.session_state.last_result, language="markdown")
             
-            # Escape text for JS
             safe_text = st.session_state.last_result.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "")
-            copy_button_html = f"""
-                <button onclick="copyToClipboard()" style="width: 100%; height: 50px; background: #22d3ee; border: none; border-radius: 12px; color: #0f172a; font-weight: 800; cursor: pointer;">
+            copy_html = f"""
+                <button onclick="navigator.clipboard.writeText(`{safe_text}`).then(() => alert('Copied!'))" 
+                style="width: 100%; height: 50px; background: #22d3ee; border: none; border-radius: 12px; color: #0f172a; font-weight: 800; cursor: pointer;">
                 📋 COPY TO CLIPBOARD
                 </button>
-                <script>
-                function copyToClipboard() {{
-                    const text = `{safe_text}`;
-                    navigator.clipboard.writeText(text).then(() => {{ alert('Copied!'); }});
-                }}
-                </script>
             """
-            c1, c2 = st.columns([3, 1])
-            with c1: components.html(copy_button_html, height=70)
-            with c2:
-                if st.button("🆕 Clear"):
-                    st.session_state.last_result = ""; st.rerun()
+            components.html(copy_html, height=60)
+            if st.button("🆕 New Prompt"):
+                st.session_state.last_result = ""; st.rerun()
         else:
             st.title("🪄 Prompt Architect")
             prompt_input = st.text_area("Input your base concept...", height=200)
@@ -159,19 +129,23 @@ if tab == 'Architect':
                                     "input_text": prompt_input, "output_text": response.text
                                 }).execute()
                             st.rerun()
-                        except Exception as e: st.error(f"Neural Error: {e}")
+                        except Exception as e: st.error(f"AI Link Error: {e}")
 
-elif tab == 'Vault':
+# --- 7. VAULT PAGE ---
+elif tab == 'Vault' or (isinstance(tab, str) and tab == 'Vault'):
     st.title("🗄️ Secure Vault")
     if not st.session_state.user:
-        st.info("🔐 The Vault is encrypted. Please log in.")
+        st.info("🔐 Please log in to view your history.")
     else:
         try:
             supabase.postgrest.auth(st.session_state.access_token)
             data = supabase.table("user_prompts").select("*").order('created_at', desc=True).execute()
-            for item in data.data:
-                with st.expander(f"📁 {item['input_text'][:50]}..."):
-                    st.code(item['output_text'])
-        except Exception as e: st.error("Vault access failed.")
+            if not data.data:
+                st.write("Vault is empty.")
+            else:
+                for item in data.data:
+                    with st.expander(f"📁 {item['input_text'][:50]}..."):
+                        st.code(item['output_text'])
+        except Exception as e: st.error(f"Vault error: {e}")
 
 st.markdown('</div>', unsafe_allow_html=True)

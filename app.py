@@ -1,64 +1,114 @@
 import streamlit as st
 from google import genai
 from google.genai import types
-from supabase import create_client
+from supabase import create_client, Client
+import streamlit.components.v1 as components
 
-# --- 1. BACKEND SETUP ---
+# --- 1. CONFIGURATION & STYLING ---
+st.set_page_config(page_title="Prompt Architect", page_icon="🏗️", layout="wide")
+
+# Custom CSS for Glassmorphism
+st.markdown("""
+    <style>
+    .stApp { background: #0f172a; color: white; }
+    .main-container {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .stButton>button {
+        width: 100%;
+        background: linear-gradient(90deg, #06b6d4, #3b82f6);
+        color: white; border: none; border-radius: 10px; height: 3em;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- 2. BACKEND CONNECTIONS ---
 @st.cache_resource
 def init_connection():
-    return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+    # Direct initialization to avoid 'ClientOptions' attribute errors
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
 
 supabase = init_connection()
 client = genai.Client(api_key=st.secrets["GEMINI_KEY"])
 
-# --- 2. THE SYSTEM ARCHITECT INSTRUCTION ---
-# This is the "Brain" of your project. 
-# It tells the AI exactly how to transform a simple idea into a masterpiece.
-ARCHITECT_SYSTEM_PROMPT = """
-You are a Professional Prompt Engineer. Your ONLY task is to transform user ideas into high-quality, structured AI prompts.
+# --- 3. SESSION STATE ---
+if "user" not in st.session_state: st.session_state.user = None
+if "history" not in st.session_state: st.session_state.history = []
 
-When the user provides an idea, generate a response following this EXACT structure:
-1. **Persona**: Who should the AI act as?
-2. **Context**: What background info does the AI need?
-3. **Task**: What is the specific goal?
-4. **Constraints**: What are the limits (word count, tone, things to avoid)?
-5. **Output Format**: How should the result look (Table, Markdown, Code, etc.)?
+# --- 4. AUTHENTICATION SIDEBAR ---
+with st.sidebar:
+    st.title("🔐 Access Portal")
+    if not st.session_state.user:
+        auth_mode = st.radio("Mode", ["Login", "Sign Up"])
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+        
+        if st.button("Submit"):
+            try:
+                if auth_mode == "Login":
+                    res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+                else:
+                    res = supabase.auth.sign_up({"email": email, "password": password})
+                st.session_state.user = res.user
+                st.rerun()
+            except Exception as e:
+                st.error(f"Auth Error: {e}")
+    else:
+        st.success(f"Welcome, {st.session_state.user.email}")
+        if st.button("Logout"):
+            st.session_state.user = None
+            st.rerun()
 
-Output the final result as a clean, copyable block of text. Do NOT be conversational. Do NOT say "Here is your prompt." Just provide the engineered prompt.
-"""
+# --- 5. CORE GENERATOR LOGIC ---
+st.markdown('<div class="main-container">', unsafe_allow_html=True)
+st.title("🪄 AI Prompt Architect")
+st.caption("Transform simple ideas into professional-grade AI instructions.")
 
-# --- 3. UI LAYOUT ---
-st.title("🏗️ Professional Prompt Architect")
-st.write("Turn your 5-word idea into a 5-star prompt.")
+user_input = st.text_area("Enter your basic idea:", placeholder="e.g. A workout plan for beginners")
 
-user_idea = st.text_area("What is your idea?", placeholder="e.g., A meal plan for a busy student")
-
-if st.button("Generate Master Prompt"):
-    if user_idea:
-        with st.spinner("Engineering..."):
-            # Using Gemini 2.5 Flash with the System Instruction
+if st.button("🚀 ARCHITECT PROMPT"):
+    if user_input:
+        with st.spinner("Engineering your prompt..."):
+            # SYSTEM INSTRUCTION: This is the 'secret sauce' for your project
+            sys_msg = "You are a Master Prompt Engineer. Take the user's idea and rewrite it into a professional prompt including: Persona, Context, Task, Constraints, and Output Format."
+            
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
-                contents=f"Transform this idea: {user_idea}",
-                config=types.GenerateContentConfig(
-                    system_instruction=ARCHITECT_SYSTEM_PROMPT,
-                    temperature=0.7 # Slight creativity for better expansion
-                )
+                contents=user_input,
+                config=types.GenerateContentConfig(system_instruction=sys_msg)
             )
             
-            final_prompt = response.text
+            generated_prompt = response.text
+            st.session_state.last_result = generated_prompt
             
-            # --- DISPLAY RESULT ---
-            st.subheader("🚀 Your Engineered Prompt")
-            st.markdown("Copy the text below and paste it into ChatGPT, Gemini, or Claude.")
-            st.code(final_prompt, language="markdown")
-            
-            # --- LOG TO SUPABASE ---
-            if "user" in st.session_state and st.session_state.user:
+            # Save to Supabase Library
+            if st.session_state.user:
                 supabase.table("user_prompts").insert({
                     "user_id": st.session_state.user.id,
-                    "input_text": user_idea,
-                    "output_text": final_prompt
+                    "input_text": user_input,
+                    "output_text": generated_prompt
                 }).execute()
     else:
-        st.warning("Please enter an idea first.")
+        st.warning("Please enter an idea first!")
+
+# --- 6. RESULT DISPLAY ---
+if "last_result" in st.session_state:
+    st.subheader("✅ Optimized Prompt")
+    st.code(st.session_state.last_result, language="markdown")
+    
+    # JavaScript Copy Feature
+    copy_code = f"""
+    <button onclick="navigator.clipboard.writeText(`{st.session_state.last_result.replace('`','\\`')}`)" 
+    style="padding: 10px; background: #22c55e; color: white; border: none; border-radius: 5px; cursor: pointer;">
+    📋 Copy to Clipboard
+    </button>
+    """
+    components.html(copy_code, height=50)
+
+st.markdown('</div>', unsafe_allow_html=True)

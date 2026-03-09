@@ -1,5 +1,6 @@
-streamlit>=1.30.0
+streamlit
 google-generativeai
 supabase
-streamlit-antd-components==0.2.5
+streamlit-antd-components
+
 

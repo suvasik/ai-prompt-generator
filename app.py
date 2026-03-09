@@ -120,7 +120,7 @@ with st.sidebar:
     elif st.session_state.reset_mode:
         st.subheader("🔑 Recovery")
         email_reset = st.text_input("Recovery Email")
-        if st.button("Send Magic Link"):
+        if st.button("Send Link"):
             try:
                 supabase.auth.reset_password_for_email(email_reset)
                 st.info("Check your inbox!")
@@ -217,7 +217,7 @@ if tab == 'Architect':
                             st.error("Neural link interrupted. Try again.")
 
 elif tab == 'Vault':
-    st.title("🗄️ Secure Vault")
+    st.title("🗄️ Library")
     if not st.session_state.user:
         st.info("🔐 The Vault is encrypted. Please log in to view saved prompts.")
     else:
@@ -225,7 +225,7 @@ elif tab == 'Vault':
             supabase.postgrest.auth(st.session_state.access_token)
             data = supabase.table("user_prompts").select("*").order('created_at', desc=True).execute()
             if not data.data:
-                st.write("Vault is currently empty.")
+                st.write("Library is currently empty.")
             else:
                 for item in data.data:
                     with st.expander(f"📁 {item['input_text'][:60]}..."):
@@ -238,3 +238,4 @@ elif tab == 'Vault':
             st.error("Vault access failed.")
 
 st.markdown('</div>', unsafe_allow_html=True)
+

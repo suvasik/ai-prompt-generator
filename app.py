@@ -104,13 +104,50 @@ with st.sidebar:
                 st.success("Success! Now Login.")
             except Exception as e: st.error(f"Error: {e}")
 
-# --- 5. NAVIGATION ---
-tab = sac.tabs([
-    sac.TabsItem(label='Generator', icon='magic'),
-    sac.TabsItem(label='My Library', icon='folder2-open'),
-], align='center', variant='toggle', color='cyan')
+# --- 5. NAVIGATION (Updated with Guide) ---
+try:
+    tab = sac.tabs([
+        sac.TabsItem(label='Architect', icon='cpu'),
+        sac.TabsItem(label='Vault', icon='safe2'),
+        sac.TabsItem(label='Guide', icon='book'), # New Tutorial Tab
+    ], color='cyan', index=0)
+except:
+    tab_list = ['Architect', 'Vault', 'Guide']
+    tab = st.tabs(tab_list)[0] 
 
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
+
+# --- 6. PAGE ROUTING ---
+# ... (Keep Architect and Vault logic here) ...
+
+if tab == 'Guide':
+    st.title("📖 Beginner's Guide")
+    st.write("Master the art of Prompt Engineering in 3 simple steps.")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("### 1. The Idea 💡")
+        st.caption("Start with a simple concept. Don't worry about details yet.")
+        st.info("**Example:** 'Write a workout plan for a busy student.'")
+
+    with col2:
+        st.markdown("### 2. The Build 🏗️")
+        st.caption("Click 'Construct Masterpiece'. Our AI wraps your idea in a professional framework.")
+        st.info("**Logic:** We add Persona, Context, and strict Constraints automatically.")
+
+    with col3:
+        st.markdown("### 3. The Result 🚀")
+        st.caption("Copy your engineered prompt and paste it into any AI (ChatGPT, Gemini, etc.).")
+        st.info("**Success:** You get a 10x better answer than a basic question!")
+
+    st.divider()
+    st.subheader("💡 Pro-Tips for Better Results")
+    st.markdown("""
+    * **Be Specific:** Instead of 'Food', try 'Healthy keto dinner for two'.
+    * **State the Format:** If you want a table, mention it in your idea!
+    * **Use the Vault:** Login to save your best prompts forever.
+    """)
 
 # --- 6. PAGE ROUTING ---
 if tab == 'Generator':

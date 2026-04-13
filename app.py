@@ -117,7 +117,7 @@ if current_tab == 'Generator':
             components.html(copy_js, height=60)
             if st.button("🆕 New Architect Job"): st.session_state.last_result = ""; st.rerun()
         else:
-            st.title("🏗️ Prompt Architect")
+            st.title("Prompt Architect")
             p_input = st.text_area("Input your base idea...", height=200)
             if st.button("CONSTRUCT MASTERPIECE"):
                 if p_input:

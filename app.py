@@ -117,7 +117,7 @@ if current_tab == 'Generator':
             components.html(copy_js, height=60)
             if st.button("🆕 New Architect Job"): st.session_state.last_result = ""; st.rerun()
         else:
-            st.title("Prompt Architect")
+            st.title("🏗️ Prompt Architect")
             p_input = st.text_area("Input your base idea...", height=200)
             if st.button("CONSTRUCT MASTERPIECE"):
                 if p_input:
@@ -134,8 +134,8 @@ if current_tab == 'Generator':
                             st.rerun()
                         except Exception as e: st.error(f"Error: {e}")
 
-elif current_tab == 'Library':
-    st.title("List of Prompt history")
+elif current_tab == 'Vault':
+    st.title("🗄️ Secure Vault")
     if not st.session_state.user: st.info("🔐 Login to see your history.")
     else:
         try:

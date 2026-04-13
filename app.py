@@ -80,6 +80,7 @@ with st.sidebar:
             st.rerun()
     else:
         st.write(f"Credits: {st.session_state.usage_count}/3")
+        st.progress(st.session_state.usage_count / 3)
         mode = st.radio("Access", ["Login", "Sign Up"], horizontal=True)
         email = st.text_input("Email").strip()
         pw = st.text_input("Password", type="password").strip()
@@ -92,7 +93,6 @@ with st.sidebar:
             except: st.error("Login Failed")
 
 # --- 5. HORIZONTAL NAVIGATION ---
-# Fixed: All three on the same line
 tab = sac.tabs([
     sac.TabsItem(label='Generator', icon='magic'),
     sac.TabsItem(label='Vault', icon='safe2'),
@@ -105,27 +105,23 @@ current_tab = str(tab)
 st.markdown('<div class="main-box">', unsafe_allow_html=True)
 
 if current_tab == 'Generator':
+    with st.expander("📖 Beginner's Guide: How to use Prompt Architect"):
+        c1, c2, c3 = st.columns(3)
+        with c1: st.info("**1. Idea:** Enter a simple concept.")
+        with c2: st.info("**2. Build:** AI adds professional structure.")
+        with c3: st.info("**3. Copy:** Use the result in ChatGPT/Gemini.")
+
     if not st.session_state.user and st.session_state.usage_count >= 3:
         st.warning("🚧 Locked: Please login to save your masterpieces.")
     else:
         if st.session_state.last_result:
-            st.markdown("### 🔮 Optimized Result")
+            st.markdown("### 🔮 Engineered Prompt")
             st.code(st.session_state.last_result, language="markdown")
             
-            # --- FIXED COPY BUTTON LOGIC ---
-            safe_text = st.session_state.last_result.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "")
-            copy_html = f"""
-                <div style="display: flex; justify-content: center;">
-                    <button onclick="navigator.clipboard.writeText(`{safe_text}`).then(() => alert('Copied to Clipboard!'))" 
-                    style="width: 100%; height: 50px; background: #22d3ee; border: none; border-radius: 14px; color: #0f172a; font-weight: 800; cursor: pointer; font-family: sans-serif;">
-                    📋 COPY TO CLIPBOARD
-                    </button>
-                </div>
-            """
-            c1, c2 = st.columns([3, 1])
-            with c1: components.html(copy_html, height=70)
-            with c2: 
-                if st.button("🆕 New Chat"):
+            # Button to clear and start over
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col2:
+                if st.button("🆕 New Architect Job", use_container_width=True):
                     st.session_state.last_result = ""
                     st.rerun()
         else:
@@ -136,7 +132,6 @@ if current_tab == 'Generator':
                     with st.spinner("Engineering..."):
                         try:
                             model = genai.GenerativeModel('gemini-2.5-flash')
-                            # Choice B: Structured Logic
                             logic = "Act as a Master Prompt Engineer. Rewrite this into a professional prompt with Persona, Task, Context, and Constraints: "
                             response = model.generate_content(logic + p_input)
                             st.session_state.last_result = response.text
@@ -168,8 +163,8 @@ elif current_tab == 'Guide':
     st.write("Turn your 5-word idea into a 5-star prompt.")
     c1, c2, c3 = st.columns(3)
     with c1: st.info("**1. Idea**\nEnter a basic concept (e.g. 'Fitness plan').")
-    with c2: st.info("**2. Build**\nAI adds Persona and strict professional constraints.")
-    with c3: st.info("**3. Result**\nCopy and use in any AI like ChatGPT or Claude.")
+    with c2: st.info("**2. Build**\nAI adds professional constraints automatically.")
+    with c3: st.info("**3. One Click**\nCopy directly from the code block above.")
     st.divider()
     st.subheader("💡 Why this is better?")
     st.markdown("""

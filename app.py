@@ -134,8 +134,8 @@ if current_tab == 'Generator':
                             st.rerun()
                         except Exception as e: st.error(f"Error: {e}")
 
-elif current_tab == 'Vault':
-    st.title("🗄️ Secure Vault")
+elif current_tab == 'Library':
+    st.title("List of Prompt history")
     if not st.session_state.user: st.info("🔐 Login to see your history.")
     else:
         try:
